@@ -1,2 +1,0 @@
-d1 $ chunk 4 (hurry 2) $ spreadf [ply 2, jux (|* speed "<1.04>"),(# accelerate (saw*"<1 -1>"))] $ chop (soak 4 (|* 2) "4 8") $ s "[bd cp,breaks165,bass1*4,newnotes*8]" # up "{0 1 2 3 5 7}%8" # n ((run 16) + 1) # shape 0.9 # legato 2 # cps 0.8
-hush
