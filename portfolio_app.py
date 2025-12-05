@@ -25,6 +25,7 @@ try:
         prepare_data_for_frontier,
         find_optimal_portfolio,
         find_min_volatility_portfolio,
+        backtest_portfolio,
     )
     EFFICIENT_FRONTIER_AVAILABLE = True
 except ImportError:
@@ -677,6 +678,95 @@ if df is not None:
                     suggestions = get_portfolio_suggestions(
                         tickers, expected_returns, cov_matrix, current_weights
                     )
+
+                    st.markdown("##### パフォーマンス比較 (バックテスト)")
+
+                    period_options = {
+                        "3M": 63,
+                        "6M": 126,
+                        "1Y": 252,
+                        "All": None,
+                    }
+                    selected_period = st.selectbox(
+                        "表示期間を選択",
+                        options=list(period_options.keys()),
+                        index=0,
+                        help="バックテストに使用する期間を選択します",
+                    )
+
+                    days = period_options[selected_period]
+                    price_df_filtered = price_df.copy()
+                    if days:
+                        cutoff = price_df.index.max() - pd.Timedelta(days=days)
+                        price_df_filtered = price_df[price_df.index >= cutoff]
+
+                    if len(price_df_filtered) < 20:
+                        st.warning("選択した期間では十分な価格データがありません。より長い期間を選択してください。")
+                    else:
+                        def _weights_to_array(weight_dict: dict) -> np.ndarray:
+                            return np.array([weight_dict.get(t, 0) for t in tickers], dtype=float)
+
+                        portfolio_candidates = {}
+
+                        # Current portfolio
+                        if current_weights is not None and 'current' in suggestions:
+                            portfolio_candidates['現在のポートフォリオ'] = current_weights
+
+                        # Suggested portfolios
+                        for key in ['max_sharpe', 'min_volatility']:
+                            if key in suggestions:
+                                portfolio_candidates[suggestions[key]['name_jp']] = _weights_to_array(suggestions[key]['weights'])
+
+                        # Equal weight benchmark
+                        portfolio_candidates['等金額ベンチマーク'] = np.array([1.0 / len(tickers)] * len(tickers))
+
+                        backtest_results = {}
+                        for name, weights_arr in portfolio_candidates.items():
+                            try:
+                                result = backtest_portfolio(weights_arr, price_df_filtered)
+                                backtest_results[name] = result
+                            except ValueError as e:
+                                st.warning(f"{name} のバックテストに失敗しました: {e}")
+
+                        if backtest_results:
+                            fig_perf = go.Figure()
+                            for name, result in backtest_results.items():
+                                fig_perf.add_trace(go.Scatter(
+                                    x=result['cumulative_returns'].index,
+                                    y=result['cumulative_returns'],
+                                    mode='lines',
+                                    name=name,
+                                    hovertemplate="%{x|%Y-%m-%d}<br>累積リターン: %{y:.2f}x<extra></extra>",
+                                ))
+                            fig_perf.update_layout(
+                                title="累積リターン比較",
+                                yaxis_title="累積リターン (倍率)",
+                                xaxis_title="日付",
+                                legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
+                                margin=dict(l=10, r=10, t=40, b=80),
+                            )
+                            st.plotly_chart(fig_perf, use_container_width=True)
+
+                            metric_cols = st.columns(min(4, len(backtest_results)))
+                            col_cycle = iter(metric_cols)
+                            for name, result in backtest_results.items():
+                                try:
+                                    col = next(col_cycle)
+                                except StopIteration:
+                                    metric_cols = st.columns(min(4, len(backtest_results)))
+                                    col_cycle = iter(metric_cols)
+                                    col = next(col_cycle)
+                                metrics = result['metrics']
+                                col.metric(
+                                    name,
+                                    f"{metrics['total_return']*100:.2f}%",
+                                    delta=f"年率 {metrics['annualized_return']*100:.2f}%"
+                                )
+                                col.caption(
+                                    f"Vol: {metrics['volatility']*100:.2f}% | Max DD: {metrics['max_drawdown']*100:.2f}%"
+                                )
+                        else:
+                            st.info("バックテスト結果を表示できませんでした。入力データやウェイトを確認してください。")
                     
                     # Create efficient frontier visualization
                     col1, col2 = st.columns([2, 1])
