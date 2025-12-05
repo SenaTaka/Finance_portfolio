@@ -11,6 +11,12 @@ from scipy.optimize import minimize
 from typing import Dict, Iterable, Union
 
 
+# Maximum annualized return multiplier for capping extreme values
+# 11.0 corresponds to 1000% annual return (10x + original 1x)
+# This prevents astronomical values when extrapolating short-term returns
+MAX_ANNUAL_MULTIPLIER = 11.0
+
+
 def calculate_portfolio_metrics(
     weights: np.ndarray,
     expected_returns: np.ndarray,
@@ -478,10 +484,35 @@ def backtest_portfolio(
     cumulative = (1 + portfolio_returns).cumprod()
     benchmark_cumulative = (1 + benchmark_returns).cumprod()
 
-    def _calc_metrics(series: pd.Series) -> dict:
+    def _calc_metrics(series: pd.Series, daily_returns: pd.Series = None) -> dict:
         total_return = series.iloc[-1] - 1
-        annualized_return = (1 + total_return) ** (annual_trading_days / len(series)) - 1
-        volatility = series.pct_change().std() * np.sqrt(annual_trading_days)
+        
+        # Calculate annualized return with overflow protection
+        # When total_return is -100% or worse, handle the edge case
+        if total_return <= -1.0:
+            annualized_return = -1.0  # Complete loss
+        else:
+            exponent = annual_trading_days / len(series)
+            base = 1 + total_return
+            
+            # Prevent overflow for extreme returns
+            # Cap the effective annual return at the maximum threshold
+            # This prevents astronomical values like 2.7 trillion %
+            max_base_for_exponent = MAX_ANNUAL_MULTIPLIER ** (1 / exponent)
+            
+            if base > max_base_for_exponent:
+                # Cap at maximum reasonable annualized return
+                annualized_return = MAX_ANNUAL_MULTIPLIER - 1  # 1000%
+            else:
+                annualized_return = base ** exponent - 1
+        
+        # Calculate volatility from daily returns if provided, otherwise from cumulative pct_change
+        # Using daily returns directly is more accurate
+        if daily_returns is not None:
+            volatility = daily_returns.std() * np.sqrt(annual_trading_days)
+        else:
+            volatility = series.pct_change().std() * np.sqrt(annual_trading_days)
+        
         running_max = series.cummax()
         drawdown = (series / running_max) - 1
         max_drawdown = drawdown.min()
@@ -496,6 +527,6 @@ def backtest_portfolio(
         "daily_returns": portfolio_returns,
         "cumulative_returns": cumulative,
         "benchmark_cumulative": benchmark_cumulative,
-        "metrics": _calc_metrics(cumulative),
-        "benchmark_metrics": _calc_metrics(benchmark_cumulative),
+        "metrics": _calc_metrics(cumulative, portfolio_returns),
+        "benchmark_metrics": _calc_metrics(benchmark_cumulative, benchmark_returns),
     }
