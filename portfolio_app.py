@@ -16,7 +16,7 @@ except ImportError:
 
 st.set_page_config(page_title="Sena Investment", layout="wide")
 
-st.title("⭐️Sena Investment")
+st.title("Sena Investment")
 
 
 def get_region(country: str) -> str:
@@ -319,7 +319,15 @@ if df is not None:
 
     scenario_df = df.copy()
     if 'value_jp' in scenario_df.columns:
+        # 1. Apply Equity Price Shock to ALL assets
         scenario_df['value_jp_scenario'] = scenario_df['value_jp'] * (1 + shock_price / 100)
+        
+        # 2. Apply FX Shock to Foreign Assets (non-JPY)
+        if 'currency' in scenario_df.columns:
+            # If currency is NOT 'JPY', the value in JPY is affected by the exchange rate change.
+            is_foreign = scenario_df['currency'] != 'JPY'
+            scenario_df.loc[is_foreign, 'value_jp_scenario'] *= (1 + shock_fx / 100)
+
     if 'usd_jpy_rate' in scenario_df.columns:
         scenario_df['usd_jpy_rate'] = scenario_df['usd_jpy_rate'] * (1 + shock_fx / 100)
     if 'sigma' in scenario_df.columns:
