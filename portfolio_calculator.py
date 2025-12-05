@@ -60,6 +60,7 @@ class PortfolioCalculator:
             info = stock.info
             per = info.get('trailingPE', None)
             currency = info.get('currency', 'USD')
+            sector = info.get('sector', 'Unknown')
             
             # 社名取得
             name = None
@@ -90,7 +91,9 @@ class PortfolioCalculator:
                 'sigma': sigma,
                 'sharpe': sharpe,
                 'currency': currency,
-                'name': name
+                'name': name,
+                'sector': sector,
+                'history': hist['Close'] if not hist.empty else None
             }
         except Exception as e:
             print(f"{ticker}: データ取得エラー - {e}")
@@ -108,6 +111,8 @@ class PortfolioCalculator:
         self.get_exchange_rate()
         
         results = []
+        hist_data = {}
+        
         for index, row in df.iterrows():
             ticker = row['ticker']
             shares = row['shares']
@@ -118,6 +123,10 @@ class PortfolioCalculator:
             if data:
                 data['ticker'] = ticker
                 data['shares'] = shares
+                
+                # ヒストリカルデータを保存（相関行列用）
+                if data.get('history') is not None:
+                    hist_data[ticker] = data.pop('history')
                 
                 # 通貨に応じた計算
                 price = data['price']
@@ -141,10 +150,29 @@ class PortfolioCalculator:
                 results.append({
                     'ticker': ticker, 'shares': shares, 
                     'price': 0, 'PER': None, 'sigma': None, 'sharpe': None, 
-                    'value': 0, 'value_jp': 0, 'currency': 'N/A', 'name': 'N/A'
+                    'value': 0, 'value_jp': 0, 'currency': 'N/A', 'name': 'N/A', 'sector': 'Unknown'
                 })
 
         result_df = pd.DataFrame(results)
+        
+        # 相関行列の計算と保存
+        output_dir = "output"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        base_name = os.path.basename(self.csv_file)
+        
+        if hist_data:
+            try:
+                price_df = pd.DataFrame(hist_data)
+                # 日次リターンの相関
+                corr_df = price_df.pct_change().dropna().corr()
+                corr_file = os.path.join(output_dir, base_name.replace('.csv', f'_corr_{timestamp}.csv'))
+                corr_df.to_csv(corr_file)
+                print(f"相関行列を {corr_file} に保存しました")
+            except Exception as e:
+                print(f"相関行列の計算に失敗しました: {e}")
         
         # 比率計算
         total_value = result_df['value'].sum()
@@ -171,19 +199,13 @@ class PortfolioCalculator:
         print(f"適用為替レート: 1ドル = {self.usd_jpy:.2f}円")
 
         # 保存
-        output_dir = "output"
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        base_name = os.path.basename(self.csv_file)
         output_file = os.path.join(output_dir, base_name.replace('.csv', f'_result_{timestamp}.csv'))
         
         # メタデータとして為替レートも保存
         result_df['usd_jpy_rate'] = self.usd_jpy
         
         # カラム順序を整える
-        cols = ['ticker', 'name', 'shares', 'currency', 'price', 'value', 'value_jp', 'ratio', 'PER', 'sigma', 'sharpe', 'usd_jpy_rate']
+        cols = ['ticker', 'name', 'sector', 'shares', 'currency', 'price', 'value', 'value_jp', 'ratio', 'PER', 'sigma', 'sharpe', 'usd_jpy_rate']
         # 実際に存在するカラムのみ
         cols = [c for c in cols if c in result_df.columns]
         

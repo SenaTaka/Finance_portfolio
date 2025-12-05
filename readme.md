@@ -50,8 +50,9 @@ python portfolio_calculator.py [csv_file]
 実行すると、コンソールに結果が表示されるほか、以下の形式でファイルが保存されます。
 - 保存先: `output/` ディレクトリ
 - ファイル名: `[元のファイル名]_result_YYYYMMDD_HHMMSS.csv`
-- 追加されるカラム: `name`, `price`, `PER`, `sigma`, `sharpe`, `value`, `value_jp`, `ratio`, `usd_jpy_rate`
+- 追加されるカラム: `name`, `sector`, `price`, `PER`, `sigma`, `sharpe`, `value`, `value_jp`, `ratio`, `usd_jpy_rate`
 - **備考**: `value_jp`（円建て評価額）は整数に丸められます。
+- **相関行列**: `[元のファイル名]_corr_YYYYMMDD_HHMMSS.csv` として別途保存されます。
 
 ## Web UI (Streamlit)
 計算結果をブラウザで可視化することができます。
@@ -65,5 +66,9 @@ streamlit run portfolio_app.py
 - **統合ビュー (Combined View)**: デフォルトで `portfolio.csv` (米国株) と `portfolio_jp.csv` (日本株) の最新結果を自動的に結合し、一つのポートフォリオとして表示します。
 - **データ更新機能**: サイドバーの「Update Data」ボタンを押すと、`portfolio.csv` および `portfolio_jp.csv` の最新情報を取得して再計算を行い、表示を更新します。
 - **履歴閲覧 (US/JP History)**: サイドバーで「US History」または「JP History」を選択すると、それぞれの過去の履歴ファイルを個別に選択して閲覧できます。
+- **高度な分析**:
+  - **セクター分析**: 業種別の資産配分を円グラフで表示します。
+  - **リスク・リターン分析**: ボラティリティ（リスク）とシャープレシオ（効率性）の散布図を表示し、銘柄の特性を比較できます。
+  - **相関行列**: 銘柄間の株価連動性をヒートマップで表示し、分散投資の効果を確認できます（個別ファイル閲覧時）。
 - ポートフォリオの構成比率（円グラフ）やシャープレシオ（棒グラフ）を表示します。
 

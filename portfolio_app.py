@@ -130,6 +130,73 @@ if df is not None:
             st.plotly_chart(fig_pie, use_container_width=True)
 
     with col2:
+        st.subheader("Sector Analysis")
+        if 'sector' in df.columns and 'value_jp' in df.columns:
+            # Group by sector
+            sector_df = df.groupby('sector')['value_jp'].sum().reset_index()
+            fig_sector = px.pie(sector_df, values='value_jp', names='sector', title='Portfolio Allocation by Sector', hole=0.4)
+            st.plotly_chart(fig_sector, use_container_width=True)
+        else:
+            st.info("Sector data not available. Please update data.")
+
+    # Advanced Analysis Tabs
+    st.subheader("Advanced Analysis")
+    tab1, tab2, tab3 = st.tabs(["Risk vs Return", "Correlation Matrix", "Metrics"])
+    
+    with tab1:
+        if 'sigma' in df.columns and 'sharpe' in df.columns:
+            # Risk (Sigma) vs Return (derived from Sharpe * Sigma + RiskFree)
+            # Or just Risk vs Sharpe
+            # Let's do Risk (Volatility) vs Sharpe Ratio for now as it's available
+            scatter_df = df.dropna(subset=['sigma', 'sharpe'])
+            if not scatter_df.empty:
+                fig_scatter = px.scatter(
+                    scatter_df, 
+                    x='sigma', 
+                    y='sharpe', 
+                    size='value_jp', 
+                    color='sector' if 'sector' in df.columns else 'ticker',
+                    hover_name='name' if 'name' in df.columns else 'ticker',
+                    text='ticker',
+                    title='Risk (Volatility) vs Efficiency (Sharpe Ratio)',
+                    labels={'sigma': 'Volatility (Risk) [%]', 'sharpe': 'Sharpe Ratio'}
+                )
+                st.plotly_chart(fig_scatter, use_container_width=True)
+            else:
+                st.write("Insufficient data for Risk analysis.")
+    
+    with tab2:
+        # Try to find corresponding correlation file
+        # Logic: find corr file with same timestamp as selected result file
+        # Result file format: ..._result_YYYYMMDD_HHMMSS.csv
+        # Corr file format: ..._corr_YYYYMMDD_HHMMSS.csv
+        
+        if selected_file:
+            # Extract timestamp
+            import re
+            match = re.search(r'_result_(\d{8}_\d{6})\.csv', selected_file)
+            if match:
+                timestamp = match.group(1)
+                # Determine prefix based on view mode or file name
+                if "portfolio_jp" in selected_file:
+                    prefix = "portfolio_jp"
+                else:
+                    prefix = "portfolio"
+                
+                corr_file = os.path.join("output", f"{prefix}_corr_{timestamp}.csv")
+                
+                if os.path.exists(corr_file):
+                    corr_df = pd.read_csv(corr_file, index_col=0)
+                    fig_corr = px.imshow(corr_df, text_auto=True, title="Correlation Matrix (1 Year Daily Returns)")
+                    st.plotly_chart(fig_corr, use_container_width=True)
+                else:
+                    st.info("Correlation data not found for this snapshot.")
+            else:
+                st.info("Could not determine timestamp for correlation data.")
+        else:
+            st.info("Select a specific file to view correlation matrix.")
+
+    with tab3:
         st.subheader("Metrics Analysis")
         if 'sharpe' in df.columns and 'ticker' in df.columns:
             # Drop NAs for plotting
@@ -148,6 +215,7 @@ if df is not None:
     column_config = {
         "ticker": "Ticker",
         "name": "Company Name",
+        "sector": "Sector",
         "shares": st.column_config.NumberColumn("Shares", format="%d"),
         "currency": "Currency",
         "price": st.column_config.NumberColumn("Price", format="%.2f"),
