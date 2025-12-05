@@ -7,3 +7,4 @@ requests
 statsmodels
 streamlit
 yfinance
+streamlit_autorefresh
