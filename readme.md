@@ -1,125 +1,125 @@
 # portfolio_calculator.py
 
-## 概要
-このスクリプトは、指定されたCSVファイル（銘柄と保有株数）を読み込み、Yahoo Financeから現在の株価や財務指標を取得して、ポートフォリオの評価額や構成比率を計算するツールです。
+## Overview
+This script reads a CSV file (containing tickers and share counts), fetches current stock prices and financial metrics from Yahoo Finance, and calculates portfolio valuations and allocation ratios.
 
-## 機能
-1. **株価・為替取得**: `yfinance`を使用して最新の株価とUSD/JPY為替レートを取得します。
-   - 日本株（`.T`）の場合は、Yahoo!ファイナンス（日本）から日本語の企業名を取得します。
-2. **指標計算**:
-   - **PER (株価収益率)**: `trailingPE`を取得します。
-   - **ボラティリティ (σ)**: 過去1年間の日次リターンから年率換算の標準偏差を計算します（252営業日換算）。
-   - **シャープレシオ**: リスクフリーレートとして米国10年債利回り(^TNX)を動的に取得して使用します。
-3. **ポートフォリオ分析**:
-   - 各銘柄の評価額（ドル建て・円建て）を計算します。
-   - ポートフォリオ全体に対する各銘柄の構成比率を計算します。
-   - 構成比率の降順でソートします。
-4. **結果保存**: 計算結果をタイムスタンプ付きのCSVファイルとして保存します。
-5. **キャッシュ機能**: APIリクエストの負荷を軽減するため、データをキャッシュします。
-   - **メタデータ（社名、セクター、業種、国）**: 1週間キャッシュ
-   - **ボラティリティ・シャープレシオ**: 24時間キャッシュ
-   - **株価**: 15分間キャッシュ
-   - キャッシュは `data/ticker_cache.json` に保存されます。
+## Features
+1. **Stock Price & Exchange Rate Fetching**: Uses `yfinance` to get the latest stock prices and USD/JPY exchange rates.
+   - For Japan stocks (`.T` suffix), it fetches Japanese company names from Yahoo! Finance (Japan).
+2. **Metrics Calculation**:
+   - **PER (Price to Earnings Ratio)**: Fetches `trailingPE`.
+   - **Volatility (σ)**: Calculates annualized standard deviation from daily returns over the past year (252 trading days).
+   - **Sharpe Ratio**: Uses dynamically fetched US 10-year Treasury yield (^TNX) as the risk-free rate.
+3. **Portfolio Analysis**:
+   - Calculates valuation for each stock (in USD and JPY).
+   - Calculates allocation ratio of each stock relative to the total portfolio.
+   - Sorts by allocation ratio in descending order.
+4. **Result Saving**: Saves calculation results to a timestamped CSV file.
+5. **Caching**: Caches data to reduce API request load.
+   - **Metadata (company name, sector, industry, country)**: Cached for 1 week
+   - **Volatility & Sharpe Ratio**: Cached for 24 hours
+   - **Stock Price**: Cached for 15 minutes
+   - Cache is stored in `data/ticker_cache.json`.
 
-## 必要要件
-以下のPythonライブラリが必要です。
+## Requirements
+The following Python libraries are required:
 - pandas
 - yfinance
 - numpy
-- scipy (効率的フロンティア計算用)
+- scipy (for efficient frontier calculation)
 - requests
 - beautifulsoup4
-- streamlit (Web UI用)
-- plotly (Web UI用)
+- streamlit (for Web UI)
+- plotly (for Web UI)
 
-## 使い方
+## Usage
 
 ```bash
 python portfolio_calculator.py [csv_file] [--force-refresh]
 ```
 
-引数を省略した場合、デフォルトで `portfolio.csv` を読み込みます。
-`portfolio_jp.csv` などの別ファイルを指定することも可能です。
+If no arguments are provided, it defaults to reading `portfolio.csv`.
+You can also specify other files like `portfolio_jp.csv`.
 
-### オプション
-- `--force-refresh` または `-f`: キャッシュを無視してすべてのデータをAPIから再取得します。
+### Options
+- `--force-refresh` or `-f`: Ignores cache and fetches all data from API.
 
-### 例
+### Examples
 ```bash
-# 通常実行（キャッシュを使用）
+# Normal execution (uses cache)
 python portfolio_calculator.py
 
-# キャッシュを無視して完全更新
+# Ignore cache and full refresh
 python portfolio_calculator.py --force-refresh
 
-# 日本株ポートフォリオを更新
+# Update Japan stocks portfolio
 python portfolio_calculator.py portfolio_jp.csv
 ```
 
-## 入力ファイル形式 (CSV)
-以下のカラムを持つCSVファイルを用意してください。
+## Input File Format (CSV)
+Prepare a CSV file with the following columns:
 
 | ticker | shares |
 |--------|--------|
 | AAPL   | 10     |
 | 7203.T | 100    |
 
-※日本株の場合はティッカーに `.T` を付けてください（例: トヨタ自動車 → `7203.T`）。
-スクリプトは自動的に通貨（USD/JPY）を判別して計算します。
+* For Japan stocks, add `.T` suffix to the ticker code (e.g., Toyota: `7203.T`).
+The script automatically detects the currency (USD/JPY) and calculates accordingly.
 
-## 出力
-実行すると、コンソールに結果が表示されるほか、以下の形式でファイルが保存されます。
-- 保存先: `output/` ディレクトリ
-- ファイル名: `[元のファイル名]_result_YYYYMMDD_HHMMSS.csv`
-- 追加されるカラム: `name`, `sector`, `price`, `PER`, `sigma`, `sharpe`, `value`, `value_jp`, `ratio`, `usd_jpy_rate`
-- **備考**: `value_jp`（円建て評価額）は整数に丸められます。
-- **相関行列**: `[元のファイル名]_corr_YYYYMMDD_HHMMSS.csv` として別途保存されます。
+## Output
+Upon execution, results are displayed in the console and saved as files:
+- Location: `output/` directory
+- Filename: `[original_filename]_result_YYYYMMDD_HHMMSS.csv`
+- Added columns: `name`, `sector`, `price`, `PER`, `sigma`, `sharpe`, `value`, `value_jp`, `ratio`, `usd_jpy_rate`
+- **Note**: `value_jp` (JPY valuation) is rounded to an integer.
+- **Correlation Matrix**: Saved separately as `[original_filename]_corr_YYYYMMDD_HHMMSS.csv`.
 
 ## Web UI (Streamlit)
-計算結果をブラウザで可視化することができます。
+Calculation results can be visualized in a browser.
 
-### 起動方法
+### Starting the UI
 ```bash
 streamlit run portfolio_app.py
 ```
 
-### 機能
-- **統合ビュー (Combined View)**: デフォルトで `portfolio.csv` (米国株) と `portfolio_jp.csv` (日本株) の最新結果を自動的に結合し、一つのポートフォリオとして表示します。
-- **データ更新機能**: サイドバーの「Update Data」ボタンを押すと、`portfolio.csv` および `portfolio_jp.csv` の最新情報を取得して再計算を行い、表示を更新します。
-  - **キャッシュ機能**: 通常の更新ではキャッシュを活用し、APIリクエスト数を削減します。
-  - **完全更新オプション**: 「Force full refresh」チェックボックスをオンにすると、キャッシュを無視してすべてのデータを再取得します。
-- **履歴閲覧 (US/JP History)**: サイドバーで「US History」または「JP History」を選択すると、それぞれの過去の履歴ファイルを個別に選択して閲覧できます。
-- **高度な分析**:
-  - **セクター分析**: 業種別の資産配分を円グラフで表示します。
-  - **リスク・リターン分析**: ボラティリティ（リスク）とシャープレシオ（効率性）の散布図を表示し、銘柄の特性を比較できます。
-  - **相関行列**: 銘柄間の株価連動性をヒートマップで表示し、分散投資の効果を確認できます（個別ファイル閲覧時）。
-  - **Sharpe Optimized**: シャープレシオに基づいたポートフォリオ最適化とリバランス提案を行います。パラメータ（Sharpe/Volatilityの強調度）を調整可能です。
-- ポートフォリオの構成比率（円グラフ）やシャープレシオ（棒グラフ）を表示します。
+### Features
+- **Combined View**: By default, automatically combines the latest results from `portfolio.csv` (US stocks) and `portfolio_jp.csv` (Japan stocks) to display as a single portfolio.
+- **Data Update**: Click the "Update Data" button in the sidebar to fetch and recalculate the latest information from `portfolio.csv` and `portfolio_jp.csv`.
+  - **Caching**: Normal updates use cache to reduce API requests.
+  - **Full Refresh Option**: Check the "Force full refresh" checkbox to ignore cache and fetch all data.
+- **History View (US/JP History)**: Select "US History" or "JP History" in the sidebar to view and select past history files individually.
+- **Advanced Analysis**:
+  - **Sector Analysis**: Displays sector allocation in a pie chart.
+  - **Risk/Return Analysis**: Shows a scatter plot of volatility (risk) vs Sharpe ratio (efficiency) to compare stock characteristics.
+  - **Correlation Matrix**: Displays stock price correlation as a heatmap to verify diversification effects (when viewing individual files).
+  - **Sharpe Optimized**: Provides portfolio optimization and rebalancing suggestions based on Sharpe ratio. Parameters (Sharpe/Volatility emphasis) can be adjusted.
+- Displays portfolio allocation ratio (pie chart) and Sharpe ratio (bar chart).
 
-### 効率的フロンティア (Modern Portfolio Theory)
-現代ポートフォリオ理論（MPT）に基づく効率的フロンティアを表示し、最適なポートフォリオ配分を提案します。
+### Efficient Frontier (Modern Portfolio Theory)
+Displays the efficient frontier based on Modern Portfolio Theory (MPT) and provides optimal portfolio allocation suggestions.
 
-#### 機能
-- **効率的フロンティアの可視化**: ポートフォリオのリスク（ボラティリティ）とリターンの関係をグラフで表示します。
-  - ランダムに生成されたポートフォリオの分布
-  - 効率的フロンティア曲線（赤線）
-  - 各銘柄の個別リスク・リターン位置
+#### Features
+- **Efficient Frontier Visualization**: Displays the relationship between portfolio risk (volatility) and return in a graph.
+  - Distribution of randomly generated portfolios
+  - Efficient frontier curve (red line)
+  - Individual risk/return position for each stock
   
-- **最適ポートフォリオの提案**:
-  - **最大シャープレシオ・ポートフォリオ**: リスク調整済みリターンが最も高い配分
-  - **最小ボラティリティ・ポートフォリオ**: リスクが最も低い配分
-  - **均等加重ポートフォリオ**: すべての資産に均等に配分
-  - **現在のポートフォリオ**: 現在の保有状況に基づく配分
+- **Optimal Portfolio Suggestions**:
+  - **Maximum Sharpe Ratio Portfolio**: Allocation with the highest risk-adjusted return
+  - **Minimum Volatility Portfolio**: Allocation with the lowest risk
+  - **Equal Weight Portfolio**: Equal allocation to all assets
+  - **Current Portfolio**: Allocation based on current holdings
 
-- **リバランス推奨**: 現在のポートフォリオから最適ポートフォリオへ移行するための具体的な売買金額を提案します。
+- **Rebalancing Recommendations**: Provides specific trade amounts to transition from the current portfolio to the optimal portfolio.
 
-#### 使い方
-1. 「Update Data」ボタンでデータを更新（価格履歴データが必要）
-2. 「Efficient Frontier」セクションで各種ポートフォリオ提案を確認
-3. 「Required Trades」で最適配分への具体的な売買金額を確認
+#### How to Use
+1. Click "Update Data" button to update data (requires price history data)
+2. Review various portfolio suggestions in the "Efficient Frontier" section
+3. Check specific trade amounts for optimal allocation in "Required Trades"
 
-#### 技術的詳細
-- 過去1年間の価格データから期待リターンと共分散行列を計算
-- `scipy.optimize.minimize` を使用した平均分散最適化
-- リスクフリーレート: 米国10年債利回り（動的取得）
+#### Technical Details
+- Calculates expected returns and covariance matrix from 1 year of price data
+- Mean-variance optimization using `scipy.optimize.minimize`
+- Risk-free rate: US 10-year Treasury yield (dynamically fetched)
 

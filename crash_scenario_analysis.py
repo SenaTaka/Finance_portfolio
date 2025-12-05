@@ -6,24 +6,24 @@ import numpy as np
 
 def analyze_crash_scenario(csv_file, crash_scenarios=None):
     """
-    ポートフォリオの暴落シナリオ分析
+    Portfolio crash scenario analysis
     
     Parameters:
-    csv_file: ポートフォリオCSVファイル
-    crash_scenarios: 暴落シナリオのリスト（デフォルト: -10%, -20%, -30%, -50%）
+    csv_file: Portfolio CSV file
+    crash_scenarios: List of crash scenarios (default: -10%, -20%, -30%, -50%)
     """
     
     if crash_scenarios is None:
         crash_scenarios = [-10, -20, -30, -50]
     
-    # CSVファイルを読み込む
+    # Read CSV file
     df = pd.read_csv(csv_file)
     
     print("=" * 80)
-    print("ポートフォリオ暴落シナリオ分析")
+    print("Portfolio Crash Scenario Analysis")
     print("=" * 80)
     
-    # 現在の株価と指標を取得
+    # Get current stock prices and metrics
     prices = []
     pers = []
     betas = []
@@ -36,11 +36,11 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
             stock = yf.Ticker(ticker)
             info = stock.info
             
-            # 会社名
+            # Company name
             name = info.get('longName', info.get('shortName', ticker))
             company_names.append(name)
             
-            # 株価
+            # Stock price
             hist_1d = stock.history(period='1d')
             if len(hist_1d) > 0:
                 price = hist_1d['Close'].iloc[-1]
@@ -54,19 +54,19 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
                 per = info.get('forwardPE', None)
             pers.append(per)
             
-            # Beta（市場との相関）
+            # Beta (market correlation)
             beta = info.get('beta', None)
             betas.append(beta)
             
-            # 過去のデータから最大ドローダウンとボラティリティを計算
+            # Calculate max drawdown and volatility from historical data
             hist = stock.history(period='1y')
             if len(hist) > 1:
-                # ボラティリティ
+                # Volatility
                 returns = hist['Close'].pct_change().dropna()
                 sigma = returns.std() * np.sqrt(252) * 100
                 sigmas.append(sigma)
                 
-                # 最大ドローダウン（過去1年）
+                # Max drawdown (past 1 year)
                 cummax = hist['Close'].cummax()
                 drawdown = (hist['Close'] - cummax) / cummax * 100
                 max_dd = drawdown.min()
@@ -76,7 +76,7 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
                 max_drawdowns.append(None)
             
         except Exception as e:
-            print(f"{ticker}: エラー - {e}")
+            print(f"{ticker}: Error - {e}")
             company_names.append(ticker)
             prices.append(0)
             pers.append(None)
@@ -95,9 +95,9 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
     total_value = df['value'].sum()
     df['ratio'] = (df['value'] / total_value * 100).round(2)
     
-    # 現在のポートフォリオ
-    print(f"\n【現在のポートフォリオ】総額: ¥{total_value:,.0f}" if df['ticker'].iloc[0].endswith('.T') else f"\n【現在のポートフォリオ】総額: ${total_value:,.0f}")
-    print(f"{'Ticker':<10} {'Name':<30} {'比率':>6} {'Beta':>6} {'σ':>8} {'過去1年最大DD':>12}")
+    # Current portfolio
+    print(f"\n[Current Portfolio] Total: ¥{total_value:,.0f}" if df['ticker'].iloc[0].endswith('.T') else f"\n[Current Portfolio] Total: ${total_value:,.0f}")
+    print(f"{'Ticker':<10} {'Name':<30} {'Ratio':>6} {'Beta':>6} {'σ':>8} {'1Y Max DD':>12}")
     print("-" * 80)
     
     for _, row in df.iterrows():
@@ -107,57 +107,57 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
         name_short = row['name'][:28] if len(row['name']) > 28 else row['name']
         print(f"{row['ticker']:<10} {name_short:<30} {row['ratio']:>5.1f}% {beta_str:>6} {sigma_str:>8} {dd_str:>12}")
     
-    # ポートフォリオ全体のBeta加重平均
+    # Portfolio weighted average Beta
     df_with_beta = df[df['beta'].notna()].copy()
     if len(df_with_beta) > 0:
         portfolio_beta = (df_with_beta['beta'] * df_with_beta['ratio']).sum() / df_with_beta['ratio'].sum()
     else:
         portfolio_beta = 1.0
     
-    print(f"\nポートフォリオ加重平均Beta: {portfolio_beta:.2f}")
+    print(f"\nPortfolio Weighted Average Beta: {portfolio_beta:.2f}")
     
-    # 暴落シナリオ分析
+    # Crash scenario analysis
     print(f"\n{'=' * 80}")
-    print("【暴落シナリオ分析】")
+    print("[Crash Scenario Analysis]")
     print(f"{'=' * 80}\n")
     
     scenarios_results = []
     
     for crash_pct in crash_scenarios:
-        print(f"\n■ シナリオ{crash_pct}%: 市場全体が{crash_pct}%下落")
+        print(f"\n■ Scenario {crash_pct}%: Market drops {crash_pct}%")
         print("-" * 80)
         
         scenario_values = []
         
         for _, row in df.iterrows():
-            beta = row['beta'] if row['beta'] else 1.0  # Betaがない場合は1.0と仮定
-            sigma = row['sigma'] if row['sigma'] else 30.0  # σがない場合は30%と仮定
+            beta = row['beta'] if row['beta'] else 1.0  # Assume 1.0 if no Beta
+            sigma = row['sigma'] if row['sigma'] else 30.0  # Assume 30% if no σ
             
-            # Beta基準の予想下落率
+            # Expected drop based on Beta
             expected_drop = crash_pct * beta
             
-            # ボラティリティによる変動幅を加える（±1σ）
-            # 悲観シナリオ: 期待下落率 - 0.5σ（さらに下がる可能性）
+            # Add volatility variation (±1σ)
+            # Pessimistic scenario: expected drop - 0.5σ (potential for further decline)
             pessimistic_drop = expected_drop - (sigma * 0.5 / np.sqrt(252) * 100)
             
-            # 新価格を計算（悲観シナリオ）
+            # Calculate new price (pessimistic scenario)
             new_price = row['price'] * (1 + pessimistic_drop / 100)
             new_value = new_price * row['shares']
             scenario_values.append(new_value)
             
-            print(f"{row['ticker']:<10} Beta={beta:.2f} → 予想下落 {expected_drop:+.1f}% (悲観 {pessimistic_drop:+.1f}%) | "
+            print(f"{row['ticker']:<10} Beta={beta:.2f} → Expected drop {expected_drop:+.1f}% (Pessimistic {pessimistic_drop:+.1f}%) | "
                   f"¥{row['value']:>12,.0f} → ¥{new_value:>12,.0f} ({new_value - row['value']:+,.0f})" 
                   if row['ticker'].endswith('.T') else 
-                  f"{row['ticker']:<10} Beta={beta:.2f} → 予想下落 {expected_drop:+.1f}% (悲観 {pessimistic_drop:+.1f}%) | "
+                  f"{row['ticker']:<10} Beta={beta:.2f} → Expected drop {expected_drop:+.1f}% (Pessimistic {pessimistic_drop:+.1f}%) | "
                   f"${row['value']:>12,.0f} → ${new_value:>12,.0f} ({new_value - row['value']:+,.0f})")
         
         total_new_value = sum(scenario_values)
         total_loss = total_new_value - total_value
         loss_pct = (total_loss / total_value * 100)
         
-        print(f"\nポートフォリオ総額: ¥{total_value:,.0f} → ¥{total_new_value:,.0f}" if df['ticker'].iloc[0].endswith('.T') 
-              else f"\nポートフォリオ総額: ${total_value:,.0f} → ${total_new_value:,.0f}")
-        print(f"損失: {total_loss:+,.0f} ({loss_pct:+.2f}%)")
+        print(f"\nPortfolio Total: ¥{total_value:,.0f} → ¥{total_new_value:,.0f}" if df['ticker'].iloc[0].endswith('.T') 
+              else f"\nPortfolio Total: ${total_value:,.0f} → ${total_new_value:,.0f}")
+        print(f"Loss: {total_loss:+,.0f} ({loss_pct:+.2f}%)")
         
         scenarios_results.append({
             'scenario': f"{crash_pct}%",
@@ -167,53 +167,53 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
             'new_value': total_new_value
         })
     
-    # サマリー表示
+    # Summary display
     print(f"\n{'=' * 80}")
-    print("【シナリオサマリー】")
+    print("[Scenario Summary]")
     print(f"{'=' * 80}")
-    print(f"{'市場下落':>10} {'ポートフォリオ下落':>18} {'損失額':>18} {'残存価値':>18}")
+    print(f"{'Market Drop':>10} {'Portfolio Drop':>18} {'Loss Amount':>18} {'Remaining Value':>18}")
     print("-" * 80)
     
     for s in scenarios_results:
         currency = "¥" if df['ticker'].iloc[0].endswith('.T') else "$"
         print(f"{s['scenario']:>10} {s['portfolio_drop']:>16.2f}% {currency}{s['loss_amount']:>16,.0f} {currency}{s['new_value']:>16,.0f}")
     
-    # 結果をCSVに保存
+    # Save results to CSV
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     output_file = csv_file.replace('.csv', f'_crash_analysis_{timestamp}.csv')
     
     summary_df = pd.DataFrame(scenarios_results)
     summary_df.to_csv(output_file, index=False)
-    print(f"\n分析結果を {output_file} に保存しました")
+    print(f"\nAnalysis results saved to {output_file}")
     
-    # リスク軽減の提案
+    # Risk mitigation suggestions
     print(f"\n{'=' * 80}")
-    print("【リスク軽減の提案】")
+    print("[Risk Mitigation Suggestions]")
     print(f"{'=' * 80}")
     
-    # 高Beta銘柄を特定
+    # Identify high Beta stocks
     high_beta = df[df['beta'] > 1.5].sort_values('ratio', ascending=False)
     if len(high_beta) > 0:
-        print("\n⚠ 高Beta銘柄（Beta > 1.5）:")
+        print("\n⚠ High Beta Stocks (Beta > 1.5):")
         for _, row in high_beta.iterrows():
-            print(f"  - {row['ticker']} ({row['name'][:30]}): Beta={row['beta']:.2f}, 比率={row['ratio']:.1f}%")
-        print("  → 暴落時の下落が大きい可能性。比率を下げることを検討")
+            print(f"  - {row['ticker']} ({row['name'][:30]}): Beta={row['beta']:.2f}, Ratio={row['ratio']:.1f}%")
+        print("  → May experience larger declines during crashes. Consider reducing allocation.")
     
-    # 集中度が高い銘柄
+    # Highly concentrated stocks
     concentrated = df[df['ratio'] > 30].sort_values('ratio', ascending=False)
     if len(concentrated) > 0:
-        print("\n⚠ 集中度が高い銘柄（比率 > 30%）:")
+        print("\n⚠ Highly Concentrated Stocks (Ratio > 30%):")
         for _, row in concentrated.iterrows():
             print(f"  - {row['ticker']} ({row['name'][:30]}): {row['ratio']:.1f}%")
-        print("  → 分散投資でリスクを軽減")
+        print("  → Reduce risk through diversification")
     
-    # 防衛的な提案
-    print("\n✓ 防衛的戦略の提案:")
-    print("  1. 現金比率を10-20%確保（暴落時の買い増し資金）")
-    print("  2. 低Beta銘柄（Beta < 0.8）や債券ETFを組み入れる")
-    print("  3. ゴールド（GLDM等）やディフェンシブセクター（生活必需品、公共事業）を追加")
-    print("  4. プットオプションやインバースETFでヘッジ（上級者向け）")
-    print("  5. 高Beta・高比率の銘柄は段階的に利確を検討")
+    # Defensive suggestions
+    print("\n✓ Defensive Strategy Suggestions:")
+    print("  1. Maintain 10-20% cash allocation (funds for buying during crashes)")
+    print("  2. Include low Beta stocks (Beta < 0.8) or bond ETFs")
+    print("  3. Add gold (e.g., GLDM) or defensive sectors (consumer staples, utilities)")
+    print("  4. Hedge with put options or inverse ETFs (advanced)")
+    print("  5. Consider gradually taking profits on high Beta, high allocation stocks")
     
     return df, scenarios_results
 
