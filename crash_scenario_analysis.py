@@ -96,7 +96,7 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
     df['ratio'] = (df['value'] / total_value * 100).round(2)
     
     # Current portfolio
-    print(f"\n【Current Portfolio】Total: ¥{total_value:,.0f}" if df['ticker'].iloc[0].endswith('.T') else f"\n【Current Portfolio】Total: ${total_value:,.0f}")
+    print(f"\n[Current Portfolio] Total: ¥{total_value:,.0f}" if df['ticker'].iloc[0].endswith('.T') else f"\n[Current Portfolio] Total: ${total_value:,.0f}")
     print(f"{'Ticker':<10} {'Name':<30} {'Ratio':>6} {'Beta':>6} {'σ':>8} {'1Y Max DD':>12}")
     print("-" * 80)
     
@@ -118,7 +118,7 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
     
     # Crash scenario analysis
     print(f"\n{'=' * 80}")
-    print("【Crash Scenario Analysis】")
+    print("[Crash Scenario Analysis]")
     print(f"{'=' * 80}\n")
     
     scenarios_results = []
@@ -169,7 +169,7 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
     
     # Summary display
     print(f"\n{'=' * 80}")
-    print("【Scenario Summary】")
+    print("[Scenario Summary]")
     print(f"{'=' * 80}")
     print(f"{'Market Drop':>10} {'Portfolio Drop':>18} {'Loss Amount':>18} {'Remaining Value':>18}")
     print("-" * 80)
@@ -188,7 +188,7 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
     
     # Risk mitigation suggestions
     print(f"\n{'=' * 80}")
-    print("【Risk Mitigation Suggestions】")
+    print("[Risk Mitigation Suggestions]")
     print(f"{'=' * 80}")
     
     # Identify high Beta stocks
