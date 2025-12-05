@@ -11,6 +11,12 @@ from scipy.optimize import minimize
 from typing import Dict, Iterable, Union
 
 
+# Maximum annualized return multiplier for capping extreme values
+# 11.0 corresponds to 1000% annual return (10x + original 1x)
+# This prevents astronomical values when extrapolating short-term returns
+MAX_ANNUAL_MULTIPLIER = 11.0
+
+
 def calculate_portfolio_metrics(
     weights: np.ndarray,
     expected_returns: np.ndarray,
@@ -490,14 +496,13 @@ def backtest_portfolio(
             base = 1 + total_return
             
             # Prevent overflow for extreme returns
-            # Cap the effective annual return at a reasonable maximum (1000% = 10x)
+            # Cap the effective annual return at the maximum threshold
             # This prevents astronomical values like 2.7 trillion %
-            max_annual_multiplier = 11.0  # 1000% return = 11x multiplier
-            max_base_for_exponent = max_annual_multiplier ** (1 / exponent)
+            max_base_for_exponent = MAX_ANNUAL_MULTIPLIER ** (1 / exponent)
             
             if base > max_base_for_exponent:
                 # Cap at maximum reasonable annualized return
-                annualized_return = max_annual_multiplier - 1  # 1000%
+                annualized_return = MAX_ANNUAL_MULTIPLIER - 1  # 1000%
             else:
                 annualized_return = base ** exponent - 1
         
