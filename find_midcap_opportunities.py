@@ -22,10 +22,8 @@ def get_midcap_opportunities(min_rank=500, max_rank=2000, min_sharpe=0, max_per=
     # または、S&P MidCap 400のETFを使用
     etfs = ['IJH', 'MDY', 'VO']  # iShares S&P MidCap, SPDR MidCap, Vanguard MidCap
     
-    all_tickers = []
     for etf_ticker in etfs:
         try:
-            etf = yf.Ticker(etf_ticker)
             # ETFの保有銘柄を取得（yfinanceの制限により直接取得できない場合がある）
             print(f"{etf_ticker} から銘柄を取得中...")
         except Exception as e:
