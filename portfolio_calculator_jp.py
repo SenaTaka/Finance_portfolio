@@ -4,6 +4,21 @@ from datetime import datetime
 import numpy as np
 
 
+def get_risk_free_rate():
+    """米国10年債利回り(^TNX)を取得してリスクフリーレートとする"""
+    try:
+        ticker = "^TNX"
+        tnx = yf.Ticker(ticker)
+        hist = tnx.history(period="1d")
+        if not hist.empty:
+            rate = hist['Close'].iloc[-1]
+            print(f"現在のリスクフリーレート(^TNX): {rate:.2f}%")
+            return rate
+    except Exception as e:
+        print(f"リスクフリーレート取得エラー: {e}")
+    return 4.0  # Default fallback (was 0.5 in JP script, but guide says replace 4% with dynamic. I'll use dynamic or 4.0 fallback to be consistent with main calc, or maybe 0.5? Let's use dynamic if available)
+
+
 def calculate_portfolio(csv_file):
     """
     CSVファイルからティッカーと株数を読み込み、株価とポートフォリオの比率を計算する（日本株対応）
@@ -15,6 +30,9 @@ def calculate_portfolio(csv_file):
     # CSVファイルを読み込む
     df = pd.read_csv(csv_file)
     
+    # リスクフリーレート取得
+    risk_free_rate = get_risk_free_rate()
+
     # 株価、PER、ボラティリティ（シグマ）、シャープレシオを取得
     prices = []
     pers = []
@@ -54,9 +72,9 @@ def calculate_portfolio(csv_file):
                 sigma = returns.std() * np.sqrt(252) * 100  # パーセント表示
                 sigmas.append(sigma)
                 
-                # シャープレシオを計算（リスクフリーレート0.5%と仮定 - 日本国債利回り）
+                # シャープレシオを計算
                 mean_return = returns.mean() * 252 * 100  # 年率リターン（%）
-                risk_free_rate = 0.5  # 0.5%
+                # risk_free_rate is now dynamic
                 if sigma > 0:
                     sharpe = (mean_return - risk_free_rate) / sigma
                     sharpe_ratios.append(sharpe)

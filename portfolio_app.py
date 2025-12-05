@@ -30,6 +30,15 @@ try:
 except ImportError:
     EFFICIENT_FRONTIER_AVAILABLE = False
 
+try:
+    from sharpe_optimized import (
+        calculate_sharpe_scores,
+        calculate_target_weights,
+        calculate_trade_plan
+    )
+except ImportError:
+    pass
+
 st.set_page_config(page_title="Sena Investment", layout="wide")
 
 # Mobile optimization CSS
@@ -352,7 +361,7 @@ if df is not None:
 
     # Advanced Analysis Tabs
     st.subheader("Advanced Analysis")
-    tab1, tab2, tab3 = st.tabs(["Risk vs Return", "Correlation Matrix", "Metrics"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Risk vs Return", "Correlation Matrix", "Metrics", "Sharpe Optimized"])
     
     with tab1:
         if 'sigma' in df.columns and 'sharpe' in df.columns:
@@ -456,6 +465,155 @@ if df is not None:
                 st.plotly_chart(fig_bar, use_container_width=True)
             else:
                 st.write("No Sharpe Ratio data available.")
+
+    with tab4:
+        st.header("Sharpe Optimized Portfolio")
+        st.write("各銘柄のSharpeレシオに基づいてポートフォリオを最適化した場合の提案配分と売買プランを表示します。")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            param_a = st.slider("Sharpe 指数の強調度 a", min_value=0.5, max_value=3.0, value=1.0, step=0.5, key="slider_sharpe_a")
+        with col_b:
+            param_b = st.slider("ボラティリティの強調度 b", min_value=0.5, max_value=3.0, value=1.0, step=0.5, key="slider_vol_b")
+            
+        if 'sharpe' in df.columns and 'sigma' in df.columns:
+            # Ensure numeric types for calculation
+            df['sharpe'] = pd.to_numeric(df['sharpe'], errors='coerce')
+            df['sigma'] = pd.to_numeric(df['sigma'], errors='coerce')
+            
+            # Calculate scores and weights
+            scores = calculate_sharpe_scores(df, a=param_a, b=param_b)
+            target_weights = calculate_target_weights(scores)
+            
+            # Calculate trade plan
+            usd_jpy_rate = df['usd_jpy_rate'].iloc[0] if 'usd_jpy_rate' in df.columns else 100.0
+            trade_plan_df = calculate_trade_plan(df, target_weights, total_value_jp, usd_jpy_rate)
+            
+            # Display Trade Plan
+            st.subheader("Rebalancing Proposal")
+            
+            # Format for display
+            display_plan = trade_plan_df.copy()
+            display_plan['Action'] = display_plan['diff_value_jp'].apply(lambda x: '買い' if x > 0 else '売り')
+            display_plan['Trade Amount (JPY)'] = display_plan['diff_value_jp'].abs()
+            display_plan['Trade Shares'] = display_plan['diff_shares'].apply(lambda x: int(x) if not pd.isna(x) else 0).abs()
+            
+            # Filter small trades
+            display_plan = display_plan[display_plan['Trade Amount (JPY)'] > 1000] # Filter small amounts
+            
+            st.dataframe(
+                display_plan[['ticker', 'name', 'current_weight', 'target_weight', 'Action', 'Trade Amount (JPY)', 'Trade Shares']],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "current_weight": st.column_config.NumberColumn("Current %", format="%.2f%%"),
+                    "target_weight": st.column_config.NumberColumn("Target %", format="%.2f%%"),
+                    "Trade Amount (JPY)": st.column_config.NumberColumn("Amount (JPY)", format="¥%d"),
+                }
+            )
+            
+            # Sharpe Ratio Comparison Graph
+            st.subheader("Sharpe Ratio (Current vs Optimized)")
+            
+            # Try to calculate Sharpe Ratios
+            try:
+                # Load correlation matrix
+                corr_df = None
+                if selected_file:
+                    match = re.search(r'_result_(\d{8}_\d{6})\.csv', selected_file)
+                elif view_mode == "Combined (Latest)":
+                    # Use the first loaded file timestamp for simplicity or try to find latest corr
+                    # This is a bit tricky for combined view. Let's try to find latest corr file.
+                    corr_files = glob.glob(os.path.join("output", "*_corr_*.csv"))
+                    if corr_files:
+                        corr_files.sort(key=os.path.getmtime, reverse=True)
+                        match = re.search(r'_corr_(\d{8}_\d{6})\.csv', corr_files[0])
+                    else:
+                        match = None
+                else:
+                    match = None
+
+                if match:
+                    timestamp = match.group(1)
+                    # Try both prefixes
+                    corr_file_us = os.path.join("output", f"portfolio_corr_{timestamp}.csv")
+                    corr_file_jp = os.path.join("output", f"portfolio_jp_corr_{timestamp}.csv")
+                    
+                    if os.path.exists(corr_file_us):
+                        corr_df = pd.read_csv(corr_file_us, index_col=0)
+                    elif os.path.exists(corr_file_jp):
+                        corr_df = pd.read_csv(corr_file_jp, index_col=0)
+                
+                if corr_df is not None:
+                    # Align tickers
+                    common_tickers = [t for t in df['ticker'] if t in corr_df.index]
+                    if common_tickers:
+                        sub_df = df[df['ticker'].isin(common_tickers)].set_index('ticker')
+                        sub_corr = corr_df.loc[common_tickers, common_tickers]
+                        
+                        # Get weights
+                        w_current = sub_df['ratio'] / 100.0
+                        w_current = w_current / w_current.sum() # Normalize
+                        
+                        w_opt = pd.Series({t: target_weights.get(t, 0) for t in common_tickers})
+                        w_opt = w_opt / w_opt.sum() # Normalize
+                        
+                        # Get Sigma (annualized %)
+                        sigmas = sub_df['sigma']
+                        
+                        # Get Expected Return (annualized %)
+                        # We can back-calculate from Sharpe if we know Rf, or use mean return if available.
+                        # Sharpe = (R - Rf) / Sigma  => R = Sharpe * Sigma + Rf
+                        # We need Rf. Let's assume 4.0% or try to get it.
+                        # Ideally we should store Rf in the result CSV. I added it to portfolio_calculator.py but old files won't have it.
+                        # Let's assume 4.0 if not found.
+                        rf = 4.0
+                        
+                        # Calculate Portfolio Volatility
+                        # Vol = sqrt(w.T * Cov * w)
+                        # Cov_ij = Corr_ij * Sigma_i * Sigma_j
+                        
+                        # Construct Covariance Matrix
+                        cov_matrix = pd.DataFrame(index=common_tickers, columns=common_tickers, dtype=float)
+                        for i in common_tickers:
+                            for j in common_tickers:
+                                cov_matrix.loc[i, j] = sub_corr.loc[i, j] * sigmas[i] * sigmas[j]
+                        
+                        def calc_port_stats(weights, cov_mat, individual_sharpes, individual_sigmas, rf):
+                            vol = np.sqrt(np.dot(weights.T, np.dot(cov_mat, weights)))
+                            # Expected Return of Portfolio = Sum(w_i * R_i)
+                            # R_i = Sharpe_i * Sigma_i + Rf
+                            r_i = individual_sharpes * individual_sigmas + rf
+                            ret = np.dot(weights, r_i)
+                            sharpe = (ret - rf) / vol if vol > 0 else 0
+                            return sharpe
+                        
+                        sharpe_current = calc_port_stats(w_current, cov_matrix, sub_df['sharpe'], sigmas, rf)
+                        sharpe_opt = calc_port_stats(w_opt, cov_matrix, sub_df['sharpe'], sigmas, rf)
+                        
+                        # Plot
+                        fig_sharpe = go.Figure()
+                        fig_sharpe.add_trace(go.Bar(
+                            name='Sharpe Ratio',
+                            x=['Current Portfolio', 'Sharpe Optimized'],
+                            y=[sharpe_current, sharpe_opt],
+                            text=[f"{sharpe_current:.2f}", f"{sharpe_opt:.2f}"],
+                            textposition='auto'
+                        ))
+                        fig_sharpe.add_hline(y=1, line_dash="dash", line_color="red", annotation_text="Sharpe=1.0")
+                        fig_sharpe.update_layout(title="Sharpe Ratio (Before vs After)", yaxis_title="Sharpe Ratio")
+                        st.plotly_chart(fig_sharpe, use_container_width=True)
+                        
+                        st.caption("※相関行列と各銘柄の統計値に基づいた概算値です。")
+                    else:
+                        st.info("相関データと銘柄が一致しません。")
+                else:
+                    st.info("相関行列データが見つかりません。Update Dataを実行してください。")
+            except Exception as e:
+                st.warning(f"Sharpe Ratio比較グラフの作成中にエラーが発生しました: {e}")
+                
+        else:
+            st.info("Sharpe Ratio data not available.")
 
     st.divider()
     st.subheader("📈 Efficient Frontier (Modern Portfolio Theory)")
@@ -918,14 +1076,32 @@ if df is not None:
         st.info("No historical data available yet. Run 'Update Data' to start tracking.")
 
     st.divider()
-    st.subheader("📊 Performance vs S&P 500 (1 Year)")
+    st.subheader("📊 Performance & Sharpe Ratio vs S&P 500")
     
-    # Calculate portfolio performance vs S&P 500 over the past year
+    # Period selection
+    period_options = {
+        "1 Month": 30,
+        "3 Months": 90,
+        "6 Months": 180,
+        "1 Year": 365,
+        "YTD": "ytd",
+        "3 Years": 365 * 3
+    }
+    selected_period_label = st.selectbox("Select Period", list(period_options.keys()))
+    
+    # Calculate dates
+    end_date = datetime.now()
+    if selected_period_label == "YTD":
+        start_date = datetime(end_date.year, 1, 1)
+    else:
+        days = period_options[selected_period_label]
+        start_date = end_date - timedelta(days=days)
+        
+    st.caption(f"Period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    
+    # Calculate portfolio performance vs S&P 500
     if 'ticker' in df.columns and 'shares' in df.columns:
         try:
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=365)
-            
             # Get S&P 500 data
             sp500 = yf.Ticker("^SPX")
             sp500_hist = sp500.history(start=start_date, end=end_date)
@@ -934,6 +1110,14 @@ if df is not None:
                 # Fallback to ^GSPC if ^SPX fails
                 sp500 = yf.Ticker("^GSPC")
                 sp500_hist = sp500.history(start=start_date, end=end_date)
+            
+            # Get Risk Free Rate (10 Year Treasury)
+            tnx = yf.Ticker("^TNX")
+            tnx_hist = tnx.history(period="1d")
+            if not tnx_hist.empty:
+                rf_rate = tnx_hist['Close'].iloc[-1] / 100.0
+            else:
+                rf_rate = 0.04 # Default 4%
             
             if not sp500_hist.empty:
                 # Ensure timezone naive for comparison to avoid mismatch
@@ -1007,17 +1191,31 @@ if df is not None:
                                     portfolio_value += price_df[ticker] * shares_dict.get(ticker, 0)
                                 
                                 # Normalize both to percentage returns from the start
-                                portfolio_return = (portfolio_value / portfolio_value.iloc[0] - 1) * 100
+                                portfolio_return_series = (portfolio_value / portfolio_value.iloc[0] - 1) * 100
                                 
                                 # Align S&P 500 data with portfolio data
                                 sp500_aligned = sp500_hist['Close'].reindex(price_df.index).ffill().bfill()
-                                sp500_return = (sp500_aligned / sp500_aligned.iloc[0] - 1) * 100
+                                sp500_return_series = (sp500_aligned / sp500_aligned.iloc[0] - 1) * 100
+                                
+                                # Calculate Sharpe Ratios
+                                # Daily returns
+                                port_daily_ret = portfolio_value.pct_change().dropna()
+                                sp500_daily_ret = sp500_aligned.pct_change().dropna()
+                                
+                                # Annualized metrics
+                                port_ann_ret = port_daily_ret.mean() * 252
+                                port_ann_vol = port_daily_ret.std() * np.sqrt(252)
+                                port_sharpe = (port_ann_ret - rf_rate) / port_ann_vol if port_ann_vol > 0 else 0
+                                
+                                sp500_ann_ret = sp500_daily_ret.mean() * 252
+                                sp500_ann_vol = sp500_daily_ret.std() * np.sqrt(252)
+                                sp500_sharpe = (sp500_ann_ret - rf_rate) / sp500_ann_vol if sp500_ann_vol > 0 else 0
                                 
                                 # Create comparison DataFrame
                                 comparison_df = pd.DataFrame({
                                     'Date': price_df.index,
-                                    'Portfolio': portfolio_return.values,
-                                    'S&P 500': sp500_return.values
+                                    'Portfolio': portfolio_return_series.values,
+                                    'S&P 500': sp500_return_series.values
                                 })
                                 
                                 # Create the comparison chart
@@ -1043,7 +1241,7 @@ if df is not None:
                                 fig_comparison.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
                                 
                                 fig_comparison.update_layout(
-                                    title='Portfolio vs S&P 500 Performance (1 Year)',
+                                    title=f'Portfolio vs S&P 500 Performance ({selected_period_label})',
                                     xaxis_title='Date',
                                     yaxis_title='Return (%)',
                                     legend=dict(
@@ -1060,8 +1258,8 @@ if df is not None:
                                 st.plotly_chart(fig_comparison, use_container_width=True)
                                 
                                 # Show performance summary
-                                portfolio_total_return = portfolio_return.iloc[-1]
-                                sp500_total_return = sp500_return.iloc[-1]
+                                portfolio_total_return = portfolio_return_series.iloc[-1]
+                                sp500_total_return = sp500_return_series.iloc[-1]
                                 outperformance = portfolio_total_return - sp500_total_return
                                 
                                 col1, col2, col3 = st.columns(3)
@@ -1071,12 +1269,14 @@ if df is not None:
                                         f"{portfolio_total_return:+.2f}%",
                                         delta=None
                                     )
+                                    st.metric("Portfolio Sharpe", f"{port_sharpe:.2f}")
                                 with col2:
                                     st.metric(
                                         "S&P 500 Return",
                                         f"{sp500_total_return:+.2f}%",
                                         delta=None
                                     )
+                                    st.metric("S&P 500 Sharpe", f"{sp500_sharpe:.2f}")
                                 with col3:
                                     delta_color = "normal" if outperformance >= 0 else "inverse"
                                     st.metric(
@@ -1085,6 +1285,7 @@ if df is not None:
                                         delta=f"{'Beat' if outperformance >= 0 else 'Underperformed'} S&P 500",
                                         delta_color=delta_color
                                     )
+                                    st.metric("Risk Free Rate", f"{rf_rate*100:.2f}%")
                             else:
                                 st.info("Insufficient price data to calculate performance comparison.")
                         else:

@@ -55,7 +55,25 @@ class PortfolioCalculator:
         self.usd_jpy = 1.0
         self.force_refresh = force_refresh
         self.cache = load_cache()
-        
+        self.risk_free_rate = 4.0  # Default fallback
+
+    def get_risk_free_rate(self):
+        """米国10年債利回り(^TNX)を取得してリスクフリーレートとする"""
+        try:
+            ticker = "^TNX"
+            tnx = yf.Ticker(ticker)
+            # Get 1 day history
+            hist = tnx.history(period="1d")
+            if not hist.empty:
+                # ^TNX is in percent (e.g. 4.3), so divide by 100
+                self.risk_free_rate = hist['Close'].iloc[-1]
+                print(f"現在のリスクフリーレート(^TNX): {self.risk_free_rate:.2f}%")
+            else:
+                print("リスクフリーレートの取得に失敗しました。デフォルト値(4.0%)を使用します。")
+        except Exception as e:
+            print(f"リスクフリーレート取得エラー: {e}")
+            # Keep default
+
     def get_exchange_rate(self):
         """USD/JPYレートを取得"""
         try:
@@ -124,7 +142,8 @@ class PortfolioCalculator:
                     returns = hist['Close'].pct_change().dropna()
                     sigma = returns.std() * np.sqrt(252) * 100
                     mean_return = returns.mean() * 252 * 100
-                    risk_free_rate = 4.0
+                    # Use dynamic risk free rate
+                    risk_free_rate = self.risk_free_rate
                     if sigma > 0:
                         sharpe = (mean_return - risk_free_rate) / sigma
                 
@@ -223,6 +242,8 @@ class PortfolioCalculator:
         
         # 為替レート取得
         self.get_exchange_rate()
+        # リスクフリーレート取得
+        self.get_risk_free_rate()
         
         results = []
         hist_data = {}
