@@ -296,19 +296,54 @@ if df is not None:
             # Let's do Risk (Volatility) vs Sharpe Ratio for now as it's available
             scatter_df = df.dropna(subset=['sigma', 'sharpe'])
             if not scatter_df.empty:
+                # Create custom hover template for better mobile readability
+                hover_template = (
+                    "<b>%{customdata[0]}</b><br>" +
+                    "Ticker: %{customdata[1]}<br>" +
+                    "Volatility: %{x:.1f}%<br>" +
+                    "Sharpe Ratio: %{y:.2f}<br>" +
+                    "Value: ¥%{customdata[2]:,.0f}<extra></extra>"
+                )
+                
+                # Prepare custom data for hover
+                custom_data_cols = []
+                if 'name' in scatter_df.columns:
+                    custom_data_cols.append(scatter_df['name'].fillna(scatter_df['ticker']))
+                else:
+                    custom_data_cols.append(scatter_df['ticker'])
+                custom_data_cols.append(scatter_df['ticker'])
+                custom_data_cols.append(scatter_df['value_jp'] if 'value_jp' in scatter_df.columns else [0]*len(scatter_df))
+                
+                import numpy as np
+                custom_data = np.column_stack(custom_data_cols)
+                
                 fig_scatter = px.scatter(
                     scatter_df, 
                     x='sigma', 
                     y='sharpe', 
                     size='value_jp', 
-                    color='sector' if 'sector' in df.columns else 'ticker',
-                    hover_name='name' if 'name' in df.columns else 'ticker',
-                    text='ticker',
+                    color='ticker',
                     title='Risk (Volatility) vs Efficiency (Sharpe Ratio)',
                     labels={'sigma': 'Volatility (Risk) [%]', 'sharpe': 'Sharpe Ratio'}
                 )
-                apply_mobile_layout(fig_scatter)
+                
+                # Update traces to remove text labels and improve hover
+                fig_scatter.update_traces(
+                    customdata=custom_data,
+                    hovertemplate=hover_template,
+                    textposition=None
+                )
+                
+                # Apply mobile-optimized layout: hide legend and increase chart area
+                fig_scatter.update_layout(
+                    margin=dict(l=10, r=10, t=40, b=40),
+                    showlegend=False,
+                    xaxis=dict(title=dict(font=dict(size=12))),
+                    yaxis=dict(title=dict(font=dict(size=12))),
+                )
+                
                 st.plotly_chart(fig_scatter, use_container_width=True)
+                st.caption("💡 タップして銘柄の詳細を表示")
             else:
                 st.write("Insufficient data for Risk analysis.")
     
@@ -484,6 +519,81 @@ if df is not None:
         st.info("Run update to capture sector and country metadata for factor views.")
 
     st.divider()
+    st.subheader("📈 Portfolio Value History")
+    
+    # Collect historical total values from result files
+    us_history_files = sorted(glob.glob(os.path.join("output", "portfolio_result_*.csv")), key=os.path.getmtime)
+    jp_history_files = sorted(glob.glob(os.path.join("output", "portfolio_jp_result_*.csv")), key=os.path.getmtime)
+    
+    history_data = []
+    import re
+    
+    for f_path in us_history_files + jp_history_files:
+        try:
+            match = re.search(r'_result_(\d{8})_(\d{6})\.csv', f_path)
+            if match:
+                date_str = match.group(1)
+                time_str = match.group(2)
+                dt = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
+                
+                hist_df = pd.read_csv(f_path)
+                if 'value_jp' in hist_df.columns:
+                    total = hist_df['value_jp'].sum()
+                    source = "US" if "portfolio_result_" in f_path else "JP"
+                    history_data.append({
+                        'datetime': dt,
+                        'date': dt.date(),
+                        'total_value_jp': total,
+                        'source': source
+                    })
+        except Exception:
+            pass
+    
+    if history_data:
+        history_df = pd.DataFrame(history_data)
+        # Group by date and source, take latest value per day per source
+        history_df = history_df.sort_values('datetime').groupby(['date', 'source']).last().reset_index()
+        
+        # Pivot to combine US and JP values by date
+        pivot_df = history_df.pivot(index='date', columns='source', values='total_value_jp').reset_index()
+        pivot_df = pivot_df.fillna(method='ffill').fillna(0)
+        
+        # Calculate combined total
+        cols_to_sum = [c for c in ['US', 'JP'] if c in pivot_df.columns]
+        if cols_to_sum:
+            pivot_df['Combined'] = pivot_df[cols_to_sum].sum(axis=1)
+            
+            fig_history = px.line(
+                pivot_df, 
+                x='date', 
+                y='Combined',
+                title='Portfolio Value Over Time (JPY)',
+                labels={'date': 'Date', 'Combined': 'Total Value (JPY)'},
+                markers=True
+            )
+            fig_history.update_layout(
+                margin=dict(l=10, r=10, t=40, b=40),
+                showlegend=False,
+                yaxis=dict(tickformat=","),
+            )
+            st.plotly_chart(fig_history, use_container_width=True)
+            
+            # Show summary stats
+            if len(pivot_df) > 1:
+                latest = pivot_df['Combined'].iloc[-1]
+                first = pivot_df['Combined'].iloc[0]
+                change = latest - first
+                change_pct = (change / first * 100) if first > 0 else 0
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total Change", f"¥{change:,.0f}", f"{change_pct:+.1f}%")
+                with col2:
+                    st.metric("Data Points", len(pivot_df))
+    else:
+        st.info("No historical data available yet. Run 'Update Data' to start tracking.")
+
+    st.divider()
     st.subheader("Detailed Data")
 
     # Display dataframe with formatting
@@ -497,6 +607,7 @@ if df is not None:
         "PER": st.column_config.NumberColumn("PER", format="%.2f"),
         "sigma": st.column_config.NumberColumn("Volatility (σ)", format="%.2f%%"),
         "sharpe": st.column_config.NumberColumn("Sharpe Ratio", format="%.2f"),
+        "dividend_yield": st.column_config.NumberColumn("Dividend Yield", format="%.2f%%"),
         "value": st.column_config.NumberColumn("Value (USD)", format="$%.2f"),
         "value_jp": st.column_config.NumberColumn("Value (JPY)", format="¥%.0f"),
         "ratio": st.column_config.NumberColumn("Ratio", format="%.2f%%"),

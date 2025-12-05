@@ -85,11 +85,17 @@ class PortfolioCalculator:
                 if sigma > 0:
                     sharpe = (mean_return - risk_free_rate) / sigma
 
+            # 配当利回り
+            dividend_yield = info.get('dividendYield')
+            if dividend_yield is not None:
+                dividend_yield = dividend_yield * 100  # パーセント表示
+            
             return {
                 'price': current_price,
                 'PER': per,
                 'sigma': sigma,
                 'sharpe': sharpe,
+                'dividend_yield': dividend_yield,
                 'currency': currency,
                 'name': name,
                 'sector': info.get('sector'),
@@ -152,6 +158,7 @@ class PortfolioCalculator:
                 results.append({
                     'ticker': ticker, 'shares': shares, 
                     'price': 0, 'PER': None, 'sigma': None, 'sharpe': None, 
+                    'dividend_yield': None,
                     'value': 0, 'value_jp': 0, 'currency': 'N/A', 'name': 'N/A', 'sector': 'Unknown'
                 })
 
@@ -209,7 +216,7 @@ class PortfolioCalculator:
         # カラム順序を整える
         cols = [
             'ticker', 'name', 'shares', 'currency', 'price', 'value', 'value_jp', 'ratio',
-            'PER', 'sigma', 'sharpe', 'sector', 'industry', 'country', 'usd_jpy_rate'
+            'PER', 'sigma', 'sharpe', 'dividend_yield', 'sector', 'industry', 'country', 'usd_jpy_rate'
         ]
         # 実際に存在するカラムのみ
         cols = [c for c in cols if c in result_df.columns]
