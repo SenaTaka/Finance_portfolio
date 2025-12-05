@@ -11,6 +11,7 @@ from efficient_frontier import (
     generate_random_portfolios,
     get_portfolio_suggestions,
     prepare_data_for_frontier,
+    backtest_portfolio,
 )
 
 
@@ -278,6 +279,46 @@ class TestPrepareDataForFrontier(unittest.TestCase):
         
         with self.assertRaises(ValueError):
             prepare_data_for_frontier(price_history)
+
+
+class TestBacktestPortfolio(unittest.TestCase):
+    """Test backtesting utility for portfolios."""
+
+    def setUp(self):
+        """Create simple deterministic price data for testing."""
+        dates = pd.date_range("2024-01-01", periods=30, freq="D")
+        # Two assets with steady upward trends
+        data = {
+            "AAA": np.linspace(100, 130, num=len(dates)),
+            "BBB": np.linspace(50, 80, num=len(dates)),
+        }
+        self.price_df = pd.DataFrame(data, index=dates)
+
+    def test_backtest_returns_metrics_and_cumulative(self):
+        """Backtest should return key performance series and metrics."""
+        weights = {"BBB": 0.6, "AAA": 0.4}  # Out-of-order keys to test alignment
+        result = backtest_portfolio(weights, self.price_df)
+
+        self.assertIn("cumulative_returns", result)
+        self.assertIn("benchmark_cumulative", result)
+        self.assertIn("metrics", result)
+        self.assertEqual(len(result["cumulative_returns"]), len(self.price_df) - 1)
+
+        # Portfolio should have positive performance over the upward trend
+        self.assertGreater(result["metrics"]["total_return"], 0)
+        self.assertGreater(result["metrics"]["annualized_return"], 0)
+
+    def test_backtest_validates_weights(self):
+        """Invalid weights should raise a clear error."""
+        bad_weights = [0.5, np.nan]
+        with self.assertRaises(ValueError):
+            backtest_portfolio(bad_weights, self.price_df)
+
+    def test_backtest_requires_sufficient_data(self):
+        """Fewer than 20 price points should trigger a validation error."""
+        short_df = self.price_df.head(10)
+        with self.assertRaises(ValueError):
+            backtest_portfolio([0.5, 0.5], short_df)
 
 
 if __name__ == "__main__":
