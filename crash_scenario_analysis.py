@@ -194,26 +194,26 @@ def analyze_crash_scenario(csv_file, crash_scenarios=None):
     # 高Beta銘柄を特定
     high_beta = df[df['beta'] > 1.5].sort_values('ratio', ascending=False)
     if len(high_beta) > 0:
-        print(f"\n⚠ 高Beta銘柄（Beta > 1.5）:")
+        print("\n⚠ 高Beta銘柄（Beta > 1.5）:")
         for _, row in high_beta.iterrows():
             print(f"  - {row['ticker']} ({row['name'][:30]}): Beta={row['beta']:.2f}, 比率={row['ratio']:.1f}%")
-        print(f"  → 暴落時の下落が大きい可能性。比率を下げることを検討")
+        print("  → 暴落時の下落が大きい可能性。比率を下げることを検討")
     
     # 集中度が高い銘柄
     concentrated = df[df['ratio'] > 30].sort_values('ratio', ascending=False)
     if len(concentrated) > 0:
-        print(f"\n⚠ 集中度が高い銘柄（比率 > 30%）:")
+        print("\n⚠ 集中度が高い銘柄（比率 > 30%）:")
         for _, row in concentrated.iterrows():
             print(f"  - {row['ticker']} ({row['name'][:30]}): {row['ratio']:.1f}%")
-        print(f"  → 分散投資でリスクを軽減")
+        print("  → 分散投資でリスクを軽減")
     
     # 防衛的な提案
-    print(f"\n✓ 防衛的戦略の提案:")
-    print(f"  1. 現金比率を10-20%確保（暴落時の買い増し資金）")
-    print(f"  2. 低Beta銘柄（Beta < 0.8）や債券ETFを組み入れる")
-    print(f"  3. ゴールド（GLDM等）やディフェンシブセクター（生活必需品、公共事業）を追加")
-    print(f"  4. プットオプションやインバースETFでヘッジ（上級者向け）")
-    print(f"  5. 高Beta・高比率の銘柄は段階的に利確を検討")
+    print("\n✓ 防衛的戦略の提案:")
+    print("  1. 現金比率を10-20%確保（暴落時の買い増し資金）")
+    print("  2. 低Beta銘柄（Beta < 0.8）や債券ETFを組み入れる")
+    print("  3. ゴールド（GLDM等）やディフェンシブセクター（生活必需品、公共事業）を追加")
+    print("  4. プットオプションやインバースETFでヘッジ（上級者向け）")
+    print("  5. 高Beta・高比率の銘柄は段階的に利確を検討")
     
     return df, scenarios_results
 
