@@ -7,54 +7,54 @@ import time
 
 def get_midcap_opportunities(min_rank=500, max_rank=2000, min_sharpe=0, max_per=3000):
     """
-    時価総額ランキング500-2000位の銘柄から投資機会を探す
+    Find investment opportunities from stocks ranked 500-2000 by market cap
     
     Parameters:
-    min_rank: 最小ランク（デフォルト500）
-    max_rank: 最大ランク（デフォルト2000）
-    min_sharpe: 最小シャープレシオ（デフォルト1.0）
-    max_per: 最大PER（デフォルト30）
+    min_rank: Minimum rank (default 500)
+    max_rank: Maximum rank (default 2000)
+    min_sharpe: Minimum Sharpe ratio (default 1.0)
+    max_per: Maximum P/E ratio (default 30)
     """
     
-    print("ミッドキャップ銘柄を取得中...")
+    print("Fetching mid-cap stocks...")
     
-    # Russell 2000（小型株指数）のETFから銘柄を取得
-    # または、S&P MidCap 400のETFを使用
+    # Get stocks from Russell 2000 (small cap index) ETF
+    # Or use S&P MidCap 400 ETF
     etfs = ['IJH', 'MDY', 'VO']  # iShares S&P MidCap, SPDR MidCap, Vanguard MidCap
     
     for etf_ticker in etfs:
         try:
-            # ETFの保有銘柄を取得（yfinanceの制限により直接取得できない場合がある）
-            print(f"{etf_ticker} から銘柄を取得中...")
+            # Get ETF holdings (may be limited by yfinance)
+            print(f"Fetching stocks from {etf_ticker}...")
         except Exception as e:
-            print(f"{etf_ticker} のエラー: {e}")
+            print(f"{etf_ticker} error: {e}")
     
-    # 代替アプローチ: 手動で選定したミッドキャップ銘柄リスト
-    # 時価総額500-2000位の代表的な銘柄（2024年現在の推定）
+    # Alternative approach: manually selected mid-cap stock list
+    # Representative stocks ranked 500-2000 by market cap (estimated for 2024)
     candidate_tickers = [
-        # テクノロジー・ソフトウェア
+        # Technology & Software
         'BILL', 'PATH', 'FROG', 'CPNG', 'GTLB', 'KVUE', 
-        # ヘルスケア・バイオ
+        # Healthcare & Biotech
         'EXAS', 'HOLX', 'TECH', 'PODD', 'INCY',
-        # 金融
+        # Finance
         'ALLY', 'SYF', 'NYCB', 'WAL', 'EWBC',
-        # 消費財
+        # Consumer Goods
         'CHEF', 'WING', 'TXRH', 'CBRL', 'PLAY',
-        # 工業・製造
+        # Industrial & Manufacturing
         'BLDR', 'BECN', 'UFPI', 'MLI', 'TREX',
-        # エネルギー・素材
+        # Energy & Materials
         'AR', 'SM', 'CTRA', 'OVV', 'PR',
-        # 不動産
+        # Real Estate
         'REXR', 'FR', 'STAG', 'NSA', 'CUBE',
-        # 通信・メディア
+        # Communications & Media
         'CABO', 'TRIP', 'MSGS', 'IMAX', 'FUBO',
-        # 小売
+        # Retail
         'FIVE', 'OLLI', 'BBWI', 'ANF', 'URBN',
-        # その他有望株
+        # Other Promising Stocks
         'RKLB', 'IONQ', 'PLTR', 'SOFI', 'UPST', 'COIN'
     ]
     
-    print(f"\n{len(candidate_tickers)} 銘柄を分析中...\n")
+    print(f"\nAnalyzing {len(candidate_tickers)} stocks...\n")
     
     results = []
     
@@ -63,29 +63,29 @@ def get_midcap_opportunities(min_rank=500, max_rank=2000, min_sharpe=0, max_per=
             stock = yf.Ticker(ticker)
             info = stock.info
             
-            # 時価総額を取得
+            # Get market cap
             market_cap = info.get('marketCap', 0)
             if market_cap == 0:
                 continue
             
-            # 株価取得
+            # Get stock price
             hist_1d = stock.history(period='1d')
             if len(hist_1d) == 0:
                 continue
             price = hist_1d['Close'].iloc[-1]
             
-            # 会社名
+            # Company name
             name = info.get('longName', info.get('shortName', ticker))
             
-            # ウェブサイト
+            # Website
             website = info.get('website', '')
             
-            # PER
+            # P/E ratio
             per = info.get('trailingPE', None)
             
-            # ボラティリティとシャープレシオを計算
+            # Calculate volatility and Sharpe ratio
             hist = stock.history(period='1y')
-            if len(hist) < 100:  # データが少なすぎる場合はスキップ
+            if len(hist) < 100:  # Skip if insufficient data
                 continue
             
             returns = hist['Close'].pct_change().dropna()
@@ -98,7 +98,7 @@ def get_midcap_opportunities(min_rank=500, max_rank=2000, min_sharpe=0, max_per=
             else:
                 sharpe = None
             
-            # フィルタリング条件
+            # Filtering conditions
             if sharpe and sharpe >= min_sharpe:
                 if per is None or (per > 0 and per <= max_per):
                     results.append({
@@ -115,28 +115,28 @@ def get_midcap_opportunities(min_rank=500, max_rank=2000, min_sharpe=0, max_per=
                     per_display = f"{per:.2f}" if per else 'N/A'
                     print(f"✓ {ticker} ({name[:30]}): ${price:.2f}, Cap: ${market_cap/1e9:.2f}B, PER: {per_display}, Sharpe: {sharpe:.2f}")
             
-            time.sleep(0.1)  # API制限対策
+            time.sleep(0.1)  # API rate limit protection
             
         except Exception as e:
-            print(f"✗ {ticker}: エラー - {e}")
+            print(f"✗ {ticker}: Error - {e}")
             continue
     
     if not results:
-        print("\n条件に合う銘柄が見つかりませんでした")
+        print("\nNo stocks found matching the criteria")
         return None
     
-    # DataFrameに変換
+    # Convert to DataFrame
     df = pd.DataFrame(results)
     df = df.sort_values('sharpe', ascending=False)
     
-    print(f"\n\n=== 投資機会候補 (Sharpe >= {min_sharpe}, PER <= {max_per}) ===")
+    print(f"\n\n=== Investment Opportunity Candidates (Sharpe >= {min_sharpe}, PER <= {max_per}) ===")
     print(df.to_string(index=False))
     
-    # CSVに保存
+    # Save to CSV
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     output_file = f'midcap_opportunities_{timestamp}.csv'
     df.to_csv(output_file, index=False)
-    print(f"\n結果を {output_file} に保存しました")
+    print(f"\nResults saved to {output_file}")
     
     return df
 
@@ -144,10 +144,10 @@ def get_midcap_opportunities(min_rank=500, max_rank=2000, min_sharpe=0, max_per=
 if __name__ == "__main__":
     import sys
     
-    # コマンドライン引数で条件を指定可能
+    # Specify conditions via command line arguments
     min_sharpe = float(sys.argv[1]) if len(sys.argv) > 1 else 1.0
     max_per = float(sys.argv[2]) if len(sys.argv) > 2 else 30
     
-    print(f"検索条件: シャープレシオ >= {min_sharpe}, PER <= {max_per}\n")
+    print(f"Search criteria: Sharpe Ratio >= {min_sharpe}, PER <= {max_per}\n")
     
     df = get_midcap_opportunities(min_sharpe=min_sharpe, max_per=max_per)

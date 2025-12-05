@@ -58,7 +58,7 @@ class PortfolioCalculator:
         self.risk_free_rate = 4.0  # Default fallback
 
     def get_risk_free_rate(self):
-        """米国10年債利回り(^TNX)を取得してリスクフリーレートとする"""
+        """Get the US 10-year Treasury yield (^TNX) as the risk-free rate"""
         try:
             ticker = "^TNX"
             tnx = yf.Ticker(ticker)
@@ -67,31 +67,31 @@ class PortfolioCalculator:
             if not hist.empty:
                 # ^TNX is in percent (e.g. 4.3), so divide by 100
                 self.risk_free_rate = hist['Close'].iloc[-1]
-                print(f"現在のリスクフリーレート(^TNX): {self.risk_free_rate:.2f}%")
+                print(f"Current risk-free rate (^TNX): {self.risk_free_rate:.2f}%")
             else:
-                print("リスクフリーレートの取得に失敗しました。デフォルト値(4.0%)を使用します。")
+                print("Failed to fetch risk-free rate. Using default value (4.0%).")
         except Exception as e:
-            print(f"リスクフリーレート取得エラー: {e}")
+            print(f"Risk-free rate fetch error: {e}")
             # Keep default
 
     def get_exchange_rate(self):
-        """USD/JPYレートを取得"""
+        """Get USD/JPY exchange rate"""
         try:
             ticker = "JPY=X"
             stock = yf.Ticker(ticker)
             hist = stock.history(period="1d")
             if not hist.empty:
                 self.usd_jpy = hist['Close'].iloc[-1]
-                print(f"現在のUSD/JPYレート: {self.usd_jpy:.2f}円")
+                print(f"Current USD/JPY rate: {self.usd_jpy:.2f} JPY")
             else:
-                print("為替データの取得に失敗しました。1ドル=100円として計算します。")
+                print("Failed to fetch exchange rate. Using 100 JPY per USD.")
                 self.usd_jpy = 100.0
         except Exception as e:
-            print(f"為替レート取得エラー: {e}")
+            print(f"Exchange rate fetch error: {e}")
             self.usd_jpy = 100.0
 
     def get_japanese_name(self, ticker):
-        """Yahoo!ファイナンス(日本)から日本語社名を取得"""
+        """Get Japanese company name from Yahoo! Finance (Japan)"""
         try:
             url = f"https://finance.yahoo.co.jp/quote/{ticker}"
             response = requests.get(url, timeout=5)
@@ -107,7 +107,7 @@ class PortfolioCalculator:
         return None
 
     def get_ticker_data(self, ticker):
-        """個別銘柄のデータを取得（キャッシュ対応）"""
+        """Get individual stock data (with caching)"""
         try:
             cached = self.cache.get(ticker, {})
             now_str = datetime.now().isoformat()
@@ -129,7 +129,7 @@ class PortfolioCalculator:
             
             # Fetch historical data only if needed for volatility calculation
             if need_volatility:
-                print(f"  {ticker}: 過去1年分のデータを取得中...")
+                print(f"  {ticker}: Fetching 1 year of data...")
                 hist = stock.history(period='1y')
                 if hist.empty:
                     return None
@@ -156,7 +156,7 @@ class PortfolioCalculator:
                 cached['history_index'] = [d.isoformat() for d in hist.index]
             elif need_price:
                 # Only fetch recent price data
-                print(f"  {ticker}: 現在価格を取得中...")
+                print(f"  {ticker}: Fetching current price...")
                 hist = stock.history(period='1d')
                 if hist.empty:
                     # Fall back to cached price if available
@@ -165,7 +165,7 @@ class PortfolioCalculator:
                     current_price = hist['Close'].iloc[-1]
             else:
                 # Use cached price
-                print(f"  {ticker}: キャッシュからデータを使用")
+                print(f"  {ticker}: Using cached data")
                 current_price = cached.get('price')
             
             # Update price cache
@@ -175,7 +175,7 @@ class PortfolioCalculator:
             
             # Fetch metadata only if needed
             if need_metadata:
-                print(f"  {ticker}: メタデータを取得中...")
+                print(f"  {ticker}: Fetching metadata...")
                 info = stock.info
                 
                 # PER and dividend yield (can change but cached with metadata)
@@ -223,7 +223,7 @@ class PortfolioCalculator:
                         index=pd.to_datetime(cached['history_index'])
                     )
                 except (ValueError, TypeError) as e:
-                    print(f"  {ticker}: 履歴データの復元に失敗: {e}")
+                    print(f"  {ticker}: Failed to reconstruct history data: {e}")
                     result['history'] = None
             
             return result
@@ -234,10 +234,10 @@ class PortfolioCalculator:
 
     def run(self):
         if not os.path.exists(self.csv_file):
-            print(f"エラー: ファイル {self.csv_file} が見つかりません。")
+            print(f"Error: File {self.csv_file} not found.")
             return
 
-        print(f"ポートフォリオ計算を開始します: {self.csv_file}")
+        print(f"Starting portfolio calculation: {self.csv_file}")
         df = pd.read_csv(self.csv_file)
         
         # 為替レート取得
@@ -252,7 +252,7 @@ class PortfolioCalculator:
             ticker = row['ticker']
             shares = row['shares']
             
-            print(f"データ取得中: {ticker}...")
+            print(f"Fetching data: {ticker}...")
             data = self.get_ticker_data(ticker)
             
             if data:
@@ -302,13 +302,13 @@ class PortfolioCalculator:
         if hist_data:
             try:
                 price_df = pd.DataFrame(hist_data)
-                # 日次リターンの相関
+                # Daily return correlation
                 corr_df = price_df.pct_change().dropna().corr()
                 corr_file = os.path.join(output_dir, base_name.replace('.csv', f'_corr_{timestamp}.csv'))
                 corr_df.to_csv(corr_file)
-                print(f"相関行列を {corr_file} に保存しました")
+                print(f"Saved correlation matrix to {corr_file}")
             except Exception as e:
-                print(f"相関行列の計算に失敗しました: {e}")
+                print(f"Failed to calculate correlation matrix: {e}")
         
         # 比率計算
         total_value = result_df['value'].sum()
@@ -317,65 +317,65 @@ class PortfolioCalculator:
         else:
             result_df['ratio'] = 0
 
-        # ソート
+        # Sort
         result_df = result_df.sort_values('ratio', ascending=False)
         
-        # 表示
+        # Display
         pd.options.display.float_format = '{:.2f}'.format
-        print("\n=== ポートフォリオ詳細 ===")
-        # 表示用カラム選択
+        print("\n=== Portfolio Details ===")
+        # Display column selection
         display_cols = ['ticker', 'name', 'shares', 'price', 'value', 'value_jp', 'ratio', 'PER', 'sharpe']
-        # 存在しないカラムは除外（念のため）
+        # Exclude columns that don't exist
         display_cols = [c for c in display_cols if c in result_df.columns]
         print(result_df[display_cols].to_string(index=False))
         
         total_value_jp = result_df['value_jp'].sum()
-        print(f"\n総評価額 (USD): ${total_value:,.2f}")
-        print(f"総評価額 (JPY): ¥{total_value_jp:,.0f}")
-        print(f"適用為替レート: 1ドル = {self.usd_jpy:.2f}円")
+        print(f"\nTotal Value (USD): ${total_value:,.2f}")
+        print(f"Total Value (JPY): ¥{total_value_jp:,.0f}")
+        print(f"Exchange Rate: 1 USD = {self.usd_jpy:.2f} JPY")
 
-        # 保存
+        # Save
         output_file = os.path.join(output_dir, base_name.replace('.csv', f'_result_{timestamp}.csv'))
         
-        # メタデータとして為替レートも保存
+        # Add exchange rate as metadata
         result_df['usd_jpy_rate'] = self.usd_jpy
         
-        # カラム順序を整える
+        # Organize column order
         cols = [
             'ticker', 'name', 'shares', 'currency', 'price', 'value', 'value_jp', 'ratio',
             'PER', 'sigma', 'sharpe', 'dividend_yield', 'sector', 'industry', 'country', 'usd_jpy_rate'
         ]
-        # 実際に存在するカラムのみ
+        # Only include columns that exist
         cols = [c for c in cols if c in result_df.columns]
         
         result_df[cols].to_csv(output_file, index=False)
-        print(f"\n結果を {output_file} に保存しました")
+        print(f"\nResults saved to {output_file}")
         
         # Save cache
         save_cache(self.cache)
-        print("キャッシュを保存しました")
+        print("Cache saved")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="ポートフォリオの評価額と指標を計算します",
+        description="Calculate portfolio valuations and metrics",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-使用例:
-  python portfolio_calculator.py                    # portfolio.csvを使用
-  python portfolio_calculator.py portfolio_jp.csv  # 日本株ポートフォリオを使用
-  python portfolio_calculator.py --force-refresh   # キャッシュを無視して完全更新
+Examples:
+  python portfolio_calculator.py                    # Use portfolio.csv
+  python portfolio_calculator.py portfolio_jp.csv  # Use Japan stocks portfolio
+  python portfolio_calculator.py --force-refresh   # Ignore cache and full refresh
 """
     )
     parser.add_argument(
         "csv_file",
         nargs="?",
         default="portfolio.csv",
-        help="入力CSVファイル (デフォルト: portfolio.csv)"
+        help="Input CSV file (default: portfolio.csv)"
     )
     parser.add_argument(
         "-f", "--force-refresh",
         action="store_true",
-        help="キャッシュを無視してすべてのデータをAPIから再取得"
+        help="Ignore cache and fetch all data from API"
     )
     
     args = parser.parse_args()

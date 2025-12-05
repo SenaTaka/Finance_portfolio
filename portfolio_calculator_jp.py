@@ -5,35 +5,35 @@ import numpy as np
 
 
 def get_risk_free_rate():
-    """米国10年債利回り(^TNX)を取得してリスクフリーレートとする"""
+    """Get the US 10-year Treasury yield (^TNX) as the risk-free rate"""
     try:
         ticker = "^TNX"
         tnx = yf.Ticker(ticker)
         hist = tnx.history(period="1d")
         if not hist.empty:
             rate = hist['Close'].iloc[-1]
-            print(f"現在のリスクフリーレート(^TNX): {rate:.2f}%")
+            print(f"Current risk-free rate (^TNX): {rate:.2f}%")
             return rate
     except Exception as e:
-        print(f"リスクフリーレート取得エラー: {e}")
-    return 4.0  # Default fallback (was 0.5 in JP script, but guide says replace 4% with dynamic. I'll use dynamic or 4.0 fallback to be consistent with main calc, or maybe 0.5? Let's use dynamic if available)
+        print(f"Risk-free rate fetch error: {e}")
+    return 4.0  # Default fallback
 
 
 def calculate_portfolio(csv_file):
     """
-    CSVファイルからティッカーと株数を読み込み、株価とポートフォリオの比率を計算する（日本株対応）
+    Read ticker and share count from CSV file and calculate stock prices and portfolio ratios (Japan stocks supported)
     
     Parameters:
-    csv_file: CSVファイルのパス（列：ticker, shares）
-    ※日本株は証券コードに .T を付ける（例: 7203.T でトヨタ）
+    csv_file: Path to CSV file (columns: ticker, shares)
+    * For Japan stocks, add .T to the stock code (e.g., 7203.T for Toyota)
     """
-    # CSVファイルを読み込む
+    # Read CSV file
     df = pd.read_csv(csv_file)
     
-    # リスクフリーレート取得
+    # Get risk-free rate
     risk_free_rate = get_risk_free_rate()
 
-    # 株価、PER、ボラティリティ（シグマ）、シャープレシオを取得
+    # Get stock price, PER, volatility (sigma), and Sharpe ratio
     prices = []
     pers = []
     sigmas = []
@@ -44,12 +44,12 @@ def calculate_portfolio(csv_file):
         try:
             stock = yf.Ticker(ticker)
             
-            # 会社名を取得
+            # Get company name
             info = stock.info
             name = info.get('longName', info.get('shortName', ticker))
             company_names.append(name)
             
-            # 株価取得
+            # Get stock price
             hist_1d = stock.history(period='1d')
             if len(hist_1d) > 0:
                 price = hist_1d['Close'].iloc[-1]
@@ -57,23 +57,23 @@ def calculate_portfolio(csv_file):
                 price = 0
             prices.append(price)
             
-            # PERを取得
+            # Get PER
             per = info.get('trailingPE', None)
-            # 日本株の場合、forwardPEも試す
+            # For Japan stocks, also try forwardPE
             if per is None:
                 per = info.get('forwardPE', None)
             pers.append(per)
             
-            # ボラティリティ（シグマ）とシャープレシオを計算 - 過去1年のデータから
+            # Calculate volatility (sigma) and Sharpe ratio from 1 year of data
             hist = stock.history(period='1y')
             if len(hist) > 1:
                 returns = hist['Close'].pct_change().dropna()
-                # 日次リターンの標準偏差を年率化（252営業日）
-                sigma = returns.std() * np.sqrt(252) * 100  # パーセント表示
+                # Annualize daily return standard deviation (252 trading days)
+                sigma = returns.std() * np.sqrt(252) * 100  # Percent display
                 sigmas.append(sigma)
                 
-                # シャープレシオを計算
-                mean_return = returns.mean() * 252 * 100  # 年率リターン（%）
+                # Calculate Sharpe ratio
+                mean_return = returns.mean() * 252 * 100  # Annualized return (%)
                 # risk_free_rate is now dynamic
                 if sigma > 0:
                     sharpe = (mean_return - risk_free_rate) / sigma
@@ -91,62 +91,62 @@ def calculate_portfolio(csv_file):
             sigma_str = f"{sigma:.2f}%" if sigma else "N/A"
             sharpe_str = f"{sharpe:.2f}" if sharpe else "N/A"
             
-            # 日本円かドルかを判断（.Tで終わる場合は日本株）
+            # Determine currency by ticker suffix (.T for Japan stocks)
             currency = "¥" if ticker.endswith('.T') else "$"
             print(f"{ticker} ({name}): {currency}{price:.2f}, PER: {per_str}, σ: {sigma_str}, Sharpe: {sharpe_str}")
         except Exception as e:
-            print(f"{ticker}: エラー - {e}")
+            print(f"{ticker}: Error - {e}")
             company_names.append(ticker)
             prices.append(0)
             pers.append(None)
             sigmas.append(None)
             sharpe_ratios.append(None)
     
-    # 会社名を2列目に挿入
+    # Insert company name as second column
     df.insert(1, 'name', company_names)
     df['price'] = prices
     df['PER'] = pers
     df['sigma'] = sigmas
     df['sharpe'] = sharpe_ratios
     
-    # 評価額を計算
+    # Calculate valuation
     df['value'] = df['shares'] * df['price']
     
-    # ポートフォリオ全体の評価額
+    # Total portfolio value
     total_value = df['value'].sum()
     
-    # 比率を計算
+    # Calculate ratio
     df['ratio'] = (df['value'] / total_value * 100).round(2)
     
-    # 比率で降順ソート
+    # Sort by ratio in descending order
     df = df.sort_values('ratio', ascending=False)
     
-    # 結果を表示
-    print("\n=== ポートフォリオ詳細 ===")
+    # Display results
+    print("\n=== Portfolio Details ===")
     print(df.to_string(index=False))
     
-    # 通貨を判定（日本株とUS株の混在に対応）
+    # Determine currency (handle mixed Japan and US stocks)
     has_jp = df['ticker'].str.endswith('.T').any()
     has_us = (~df['ticker'].str.endswith('.T')).any()
     
     if has_jp and has_us:
-        print(f"\n総評価額: ¥/$ {total_value:,.2f} (混在)")
+        print(f"\nTotal Value: ¥/$ {total_value:,.2f} (mixed)")
     elif has_jp:
-        print(f"\n総評価額: ¥{total_value:,.2f}")
+        print(f"\nTotal Value: ¥{total_value:,.2f}")
     else:
-        print(f"\n総評価額: ${total_value:,.2f}")
+        print(f"\nTotal Value: ${total_value:,.2f}")
     
-    # 結果をCSVに保存（日付と時刻を含む）
+    # Save results to CSV (with date and time)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     output_file = csv_file.replace('.csv', f'_result_{timestamp}.csv')
     df.to_csv(output_file, index=False)
-    print(f"\n結果を {output_file} に保存しました")
+    print(f"\nResults saved to {output_file}")
     
     return df
 
 
 if __name__ == "__main__":
-    # 使用例
+    # Usage example
     import sys
     
     if len(sys.argv) > 1:
