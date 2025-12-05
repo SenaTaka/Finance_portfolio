@@ -95,10 +95,12 @@ MOBILE_TICK_ANGLE = -45
 
 def apply_mobile_layout(fig, show_legend=True):
     """Apply mobile-friendly layout settings to a Plotly figure."""
-    layout_config = dict(margin=dict(l=10, r=10, t=40, b=10))
+    layout_config = dict(margin=dict(l=10, r=10, t=40, b=100))
     if show_legend:
         layout_config["legend"] = dict(
-            orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5
+            orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5,
+            font=dict(size=11),
+            itemsizing="constant"
         )
     fig.update_layout(**layout_config)
     return fig
@@ -267,6 +269,7 @@ if df is not None:
                 names_col = 'ticker'
 
             fig_pie = px.pie(plot_df, values='value_jp', names=names_col, title='Portfolio Allocation by Value (JPY)', hole=0.4)
+            fig_pie.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}')
             apply_mobile_layout(fig_pie)
             st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -276,6 +279,7 @@ if df is not None:
             # Group by sector
             sector_df = df.groupby('sector')['value_jp'].sum().reset_index()
             fig_sector = px.pie(sector_df, values='value_jp', names='sector', title='Portfolio Allocation by Sector', hole=0.4)
+            fig_sector.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}')
             apply_mobile_layout(fig_sector)
             st.plotly_chart(fig_sector, use_container_width=True)
         else:
@@ -473,6 +477,7 @@ if df is not None:
                 st.write("Regional exposure")
                 st.dataframe(region_data, hide_index=True)
                 fig_region = px.pie(region_data, values='value_jp', names='region', title='Region Allocation', hole=0.3)
+                fig_region.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}')
                 apply_mobile_layout(fig_region)
                 st.plotly_chart(fig_region, use_container_width=True)
     else:
