@@ -82,15 +82,18 @@ class PortfolioCalculator:
                 mean_return = returns.mean() * 252 * 100
                 risk_free_rate = 4.0
                 if sigma > 0:
-                    sharpe = (mean_return - risk_free_rate) / sigma
-            
+                sharpe = (mean_return - risk_free_rate) / sigma
+
             return {
                 'price': current_price,
                 'PER': per,
                 'sigma': sigma,
                 'sharpe': sharpe,
                 'currency': currency,
-                'name': name
+                'name': name,
+                'sector': info.get('sector'),
+                'industry': info.get('industry'),
+                'country': info.get('country'),
             }
         except Exception as e:
             print(f"{ticker}: データ取得エラー - {e}")
@@ -183,7 +186,10 @@ class PortfolioCalculator:
         result_df['usd_jpy_rate'] = self.usd_jpy
         
         # カラム順序を整える
-        cols = ['ticker', 'name', 'shares', 'currency', 'price', 'value', 'value_jp', 'ratio', 'PER', 'sigma', 'sharpe', 'usd_jpy_rate']
+        cols = [
+            'ticker', 'name', 'shares', 'currency', 'price', 'value', 'value_jp', 'ratio',
+            'PER', 'sigma', 'sharpe', 'sector', 'industry', 'country', 'usd_jpy_rate'
+        ]
         # 実際に存在するカラムのみ
         cols = [c for c in cols if c in result_df.columns]
         
