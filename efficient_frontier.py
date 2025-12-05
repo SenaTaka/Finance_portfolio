@@ -8,6 +8,7 @@ suggestions based on Modern Portfolio Theory (MPT).
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from typing import Dict, Iterable, Union
 
 
 def calculate_portfolio_metrics(
@@ -402,8 +403,99 @@ def prepare_data_for_frontier(
     
     # Annualized expected returns (linear scaling of daily mean)
     expected_returns = returns.mean() * annual_trading_days
-    
+
     # Annualized covariance matrix (linear scaling assuming i.i.d. returns)
     cov_matrix = returns.cov() * annual_trading_days
-    
+
     return expected_returns.values, cov_matrix.values, list(price_history.columns)
+
+
+def backtest_portfolio(
+    weights: Union[Dict[str, float], Iterable[float], np.ndarray],
+    price_df: pd.DataFrame,
+    benchmark_weights: Union[Dict[str, float], Iterable[float], np.ndarray] | None = None,
+    annual_trading_days: int = 252,
+) -> dict:
+    """Backtest a portfolio using historical price data.
+
+    Args:
+        weights: Portfolio weights as a dict keyed by ticker or an array-like aligned
+            with ``price_df`` columns.
+        price_df: Price history DataFrame (columns: tickers, index: Datetime).
+        benchmark_weights: Optional weights for a benchmark portfolio. If omitted,
+            an equal-weight benchmark is used.
+        annual_trading_days: Number of trading days per year for annualization.
+
+    Returns:
+        Dictionary containing daily returns, cumulative returns, and key metrics.
+
+    Raises:
+        ValueError: If price data is insufficient or weights are invalid.
+    """
+
+    if price_df is None or price_df.empty:
+        raise ValueError("Price history is required for backtesting")
+
+    price_df = price_df.sort_index()
+
+    if len(price_df) < 20:
+        raise ValueError("At least 20 price points are required for backtesting")
+
+    returns = price_df.pct_change().dropna(how="all")
+    if returns.empty:
+        raise ValueError("Unable to calculate returns from provided price history")
+
+    tickers = list(price_df.columns)
+
+    def _normalize_weights(raw_weights) -> np.ndarray:
+        if isinstance(raw_weights, dict):
+            weight_array = np.array([raw_weights.get(t, np.nan) for t in tickers], dtype=float)
+        else:
+            weight_array = np.asarray(list(raw_weights), dtype=float)
+
+        if weight_array.shape[0] != len(tickers):
+            raise ValueError("Weights length must match number of tickers")
+
+        if np.isnan(weight_array).any():
+            raise ValueError("Weights contain missing values")
+
+        weight_sum = weight_array.sum()
+        if weight_sum <= 0:
+            raise ValueError("Weights must sum to a positive value")
+
+        return weight_array / weight_sum
+
+    normalized_weights = _normalize_weights(weights)
+    benchmark_weights = _normalize_weights(benchmark_weights) if benchmark_weights is not None else None
+
+    # Equal weight benchmark if none provided
+    if benchmark_weights is None:
+        benchmark_weights = np.array([1.0 / len(tickers)] * len(tickers))
+
+    portfolio_returns = (returns * normalized_weights).sum(axis=1)
+    benchmark_returns = (returns * benchmark_weights).sum(axis=1)
+
+    cumulative = (1 + portfolio_returns).cumprod()
+    benchmark_cumulative = (1 + benchmark_returns).cumprod()
+
+    def _calc_metrics(series: pd.Series) -> dict:
+        total_return = series.iloc[-1] - 1
+        annualized_return = (1 + total_return) ** (annual_trading_days / len(series)) - 1
+        volatility = series.pct_change().std() * np.sqrt(annual_trading_days)
+        running_max = series.cummax()
+        drawdown = (series / running_max) - 1
+        max_drawdown = drawdown.min()
+        return {
+            "total_return": total_return,
+            "annualized_return": annualized_return,
+            "volatility": volatility,
+            "max_drawdown": max_drawdown,
+        }
+
+    return {
+        "daily_returns": portfolio_returns,
+        "cumulative_returns": cumulative,
+        "benchmark_cumulative": benchmark_cumulative,
+        "metrics": _calc_metrics(cumulative),
+        "benchmark_metrics": _calc_metrics(benchmark_cumulative),
+    }
