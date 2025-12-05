@@ -95,6 +95,7 @@ class PortfolioCalculator:
                 'sector': info.get('sector'),
                 'industry': info.get('industry'),
                 'country': info.get('country'),
+                'history': hist['Close'],  # 相関行列計算用
             }
         except Exception as e:
             print(f"{ticker}: データ取得エラー - {e}")

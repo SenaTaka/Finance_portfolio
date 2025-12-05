@@ -392,7 +392,6 @@ if df is not None:
     column_config = {
         "ticker": "Ticker",
         "name": "Company Name",
-        "sector": "Sector",
         "shares": st.column_config.NumberColumn("Shares", format="%d"),
         "currency": "Currency",
         "price": st.column_config.NumberColumn("Price", format="%.2f"),
