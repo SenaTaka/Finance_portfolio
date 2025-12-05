@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import json
+import argparse
 
 # Cache configuration
 CACHE_DIR = "data"
@@ -202,7 +203,8 @@ class PortfolioCalculator:
                         cached['history'],
                         index=pd.to_datetime(cached['history_index'])
                     )
-                except Exception:
+                except (ValueError, TypeError) as e:
+                    print(f"  {ticker}: 履歴データの復元に失敗: {e}")
                     result['history'] = None
             
             return result
@@ -333,15 +335,28 @@ class PortfolioCalculator:
         print("キャッシュを保存しました")
 
 if __name__ == "__main__":
-    target_file = "portfolio.csv"
-    force_refresh = False
+    parser = argparse.ArgumentParser(
+        description="ポートフォリオの評価額と指標を計算します",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用例:
+  python portfolio_calculator.py                    # portfolio.csvを使用
+  python portfolio_calculator.py portfolio_jp.csv  # 日本株ポートフォリオを使用
+  python portfolio_calculator.py --force-refresh   # キャッシュを無視して完全更新
+"""
+    )
+    parser.add_argument(
+        "csv_file",
+        nargs="?",
+        default="portfolio.csv",
+        help="入力CSVファイル (デフォルト: portfolio.csv)"
+    )
+    parser.add_argument(
+        "-f", "--force-refresh",
+        action="store_true",
+        help="キャッシュを無視してすべてのデータをAPIから再取得"
+    )
     
-    args = sys.argv[1:]
-    for arg in args:
-        if arg == "--force-refresh" or arg == "-f":
-            force_refresh = True
-        elif not arg.startswith("-"):
-            target_file = arg
-
-    calculator = PortfolioCalculator(target_file, force_refresh=force_refresh)
+    args = parser.parse_args()
+    calculator = PortfolioCalculator(args.csv_file, force_refresh=args.force_refresh)
     calculator.run()

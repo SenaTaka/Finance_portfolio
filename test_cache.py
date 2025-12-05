@@ -4,6 +4,7 @@ import json
 import tempfile
 from datetime import datetime, timedelta
 import unittest
+from unittest import mock
 
 # Test the cache functions directly
 from portfolio_calculator import (
@@ -13,8 +14,6 @@ from portfolio_calculator import (
     CACHE_TTL_METADATA,
     CACHE_TTL_VOLATILITY,
     CACHE_TTL_PRICE,
-    CACHE_DIR,
-    CACHE_FILE,
 )
 
 
@@ -52,8 +51,6 @@ class TestCachePersistence(unittest.TestCase):
     def setUp(self):
         """Set up test with temporary directory."""
         self.temp_dir = tempfile.mkdtemp()
-        self.original_cache_dir = CACHE_DIR
-        self.original_cache_file = CACHE_FILE
 
     def tearDown(self):
         """Clean up temporary files."""
@@ -61,42 +58,40 @@ class TestCachePersistence(unittest.TestCase):
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
 
-    def test_load_empty_cache(self):
+    @mock.patch('portfolio_calculator.CACHE_FILE')
+    def test_load_empty_cache(self, mock_cache_file):
         """Test loading cache when file doesn't exist."""
+        mock_cache_file.__str__ = lambda x: os.path.join(self.temp_dir, "nonexistent.json")
+        # Re-import to get fresh function with patched value
         import portfolio_calculator
-        original_file = portfolio_calculator.CACHE_FILE
-        portfolio_calculator.CACHE_FILE = os.path.join(self.temp_dir, "nonexistent.json")
-        
-        cache = load_cache()
-        self.assertEqual(cache, {})
-        
-        portfolio_calculator.CACHE_FILE = original_file
+        with mock.patch.object(portfolio_calculator, 'CACHE_FILE', 
+                               os.path.join(self.temp_dir, "nonexistent.json")):
+            cache = portfolio_calculator.load_cache()
+            self.assertEqual(cache, {})
 
-    def test_save_and_load_cache(self):
+    @mock.patch('portfolio_calculator.CACHE_DIR')
+    @mock.patch('portfolio_calculator.CACHE_FILE')
+    def test_save_and_load_cache(self, mock_cache_file, mock_cache_dir):
         """Test saving and loading cache data."""
         import portfolio_calculator
-        original_file = portfolio_calculator.CACHE_FILE
-        original_dir = portfolio_calculator.CACHE_DIR
         
-        portfolio_calculator.CACHE_DIR = self.temp_dir
-        portfolio_calculator.CACHE_FILE = os.path.join(self.temp_dir, "test_cache.json")
+        cache_file = os.path.join(self.temp_dir, "test_cache.json")
         
-        test_data = {
-            "AAPL": {
-                "price": 150.0,
-                "name": "Apple Inc.",
-                "price_updated": datetime.now().isoformat()
-            }
-        }
-        
-        save_cache(test_data)
-        loaded = load_cache()
-        
-        self.assertEqual(loaded["AAPL"]["price"], 150.0)
-        self.assertEqual(loaded["AAPL"]["name"], "Apple Inc.")
-        
-        portfolio_calculator.CACHE_FILE = original_file
-        portfolio_calculator.CACHE_DIR = original_dir
+        with mock.patch.object(portfolio_calculator, 'CACHE_DIR', self.temp_dir):
+            with mock.patch.object(portfolio_calculator, 'CACHE_FILE', cache_file):
+                test_data = {
+                    "AAPL": {
+                        "price": 150.0,
+                        "name": "Apple Inc.",
+                        "price_updated": datetime.now().isoformat()
+                    }
+                }
+                
+                portfolio_calculator.save_cache(test_data)
+                loaded = portfolio_calculator.load_cache()
+                
+                self.assertEqual(loaded["AAPL"]["price"], 150.0)
+                self.assertEqual(loaded["AAPL"]["name"], "Apple Inc.")
 
 
 if __name__ == "__main__":
