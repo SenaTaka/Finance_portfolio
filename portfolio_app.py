@@ -150,6 +150,10 @@ if auto_refresh:
 
 alert_threshold = st.sidebar.number_input("Alert threshold for total value change (%)", min_value=1, max_value=50, value=5)
 
+# Force refresh option
+force_refresh = st.sidebar.checkbox("Force full refresh (ignore cache)", value=False, 
+    help="When checked, fetches all data from API ignoring cached values")
+
 # Update Data Button
 if st.sidebar.button("🔄 Update Data"):
     with st.spinner("Fetching latest data..."):
@@ -160,7 +164,7 @@ if st.sidebar.button("🔄 Update Data"):
             if os.path.exists(input_csv):
                 try:
                     # Redirect stdout to capture print output if needed, or just let it print to console
-                    calculator = PortfolioCalculator(input_csv)
+                    calculator = PortfolioCalculator(input_csv, force_refresh=force_refresh)
                     calculator.run()
                     updated_count += 1
                 except Exception as e:
