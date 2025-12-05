@@ -346,7 +346,7 @@ if df is not None:
             fig_pie = px.pie(plot_df, values='value_jp', names=names_col, title='Portfolio Allocation by Value (JPY)', hole=0.4)
             fig_pie.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}<extra></extra>')
             apply_mobile_layout(fig_pie)
-            st.plotly_chart(fig_pie, use_container_width=True)
+            st.plotly_chart(fig_pie, width="stretch")
 
     with col2:
         st.subheader("Sector Analysis")
@@ -356,7 +356,7 @@ if df is not None:
             fig_sector = px.pie(sector_df, values='value_jp', names='sector', title='Portfolio Allocation by Sector', hole=0.4)
             fig_sector.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}<extra></extra>')
             apply_mobile_layout(fig_sector)
-            st.plotly_chart(fig_sector, use_container_width=True)
+            st.plotly_chart(fig_sector, width="stretch")
         else:
             st.info("Sector data not available. Please update data.")
 
@@ -411,7 +411,7 @@ if df is not None:
                     yaxis=dict(title=dict(font=dict(size=12))),
                 )
                 
-                st.plotly_chart(fig_scatter, use_container_width=True)
+                st.plotly_chart(fig_scatter, width="stretch")
                 st.caption("💡 Tap to view stock details")
             else:
                 st.write("Insufficient data for Risk analysis.")
@@ -448,7 +448,7 @@ if df is not None:
                         corr_df = pd.read_csv(corr_file, index_col=0)
                         fig_corr = px.imshow(corr_df, text_auto=True, title=f"Correlation Matrix {title_suffix}")
                         apply_mobile_layout(fig_corr, show_legend=False)
-                        st.plotly_chart(fig_corr, use_container_width=True)
+                        st.plotly_chart(fig_corr, width="stretch")
                     else:
                         st.info(f"Correlation data not found for {os.path.basename(f_path)}")
         else:
@@ -463,7 +463,7 @@ if df is not None:
                 fig_bar = px.bar(plot_df, x='ticker', y='sharpe', title='Sharpe Ratio by Ticker', color='ticker')
                 apply_mobile_layout(fig_bar)
                 fig_bar.update_layout(xaxis_tickangle=MOBILE_TICK_ANGLE)
-                st.plotly_chart(fig_bar, use_container_width=True)
+                st.plotly_chart(fig_bar, width="stretch")
             else:
                 st.write("No Sharpe Ratio data available.")
 
@@ -603,7 +603,7 @@ if df is not None:
                         ))
                         fig_sharpe.add_hline(y=1, line_dash="dash", line_color="red", annotation_text="Sharpe=1.0")
                         fig_sharpe.update_layout(title="Sharpe Ratio (Before vs After)", yaxis_title="Sharpe Ratio")
-                        st.plotly_chart(fig_sharpe, use_container_width=True)
+                        st.plotly_chart(fig_sharpe, width="stretch")
                         
                         st.caption("* Approximate values based on correlation matrix and each stock's statistics.")
                     else:
@@ -745,7 +745,7 @@ if df is not None:
                                 legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
                                 margin=dict(l=10, r=10, t=40, b=80),
                             )
-                            st.plotly_chart(fig_perf, use_container_width=True)
+                            st.plotly_chart(fig_perf, width="stretch")
 
                             metric_cols = st.columns(min(4, len(backtest_results)))
                             col_cycle = iter(metric_cols)
@@ -872,7 +872,7 @@ if df is not None:
                             hovermode='closest'
                         )
                         
-                        st.plotly_chart(fig_ef, use_container_width=True)
+                        st.plotly_chart(fig_ef, width="stretch")
                     
                     with col2:
                         st.markdown("#### Portfolio Suggestions")
@@ -1071,7 +1071,7 @@ if df is not None:
                 fig_sector = px.bar(sector_data, x='sector', y='ratio', title='Sector Weight (%)', color='sector')
                 apply_mobile_layout(fig_sector)
                 fig_sector.update_layout(xaxis_tickangle=MOBILE_TICK_ANGLE)
-                st.plotly_chart(fig_sector, use_container_width=True)
+                st.plotly_chart(fig_sector, width="stretch")
 
         if 'region' in factor_cols:
             region_data = (
@@ -1086,7 +1086,7 @@ if df is not None:
                 fig_region = px.pie(region_data, values='value_jp', names='region', title='Region Allocation', hole=0.3)
                 fig_region.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}<extra></extra>')
                 apply_mobile_layout(fig_region)
-                st.plotly_chart(fig_region, use_container_width=True)
+                st.plotly_chart(fig_region, width="stretch")
     else:
         st.info("Run update to capture sector and country metadata for factor views.")
 
@@ -1147,7 +1147,7 @@ if df is not None:
                 showlegend=False,
                 yaxis=dict(tickformat=","),
             )
-            st.plotly_chart(fig_history, use_container_width=True)
+            st.plotly_chart(fig_history, width="stretch")
             
             # Show summary stats
             if len(pivot_df) > 1:
@@ -1233,7 +1233,8 @@ if df is not None:
                         start=start_date,
                         end=end_date,
                         progress=False,
-                        group_by='ticker'
+                        group_by='ticker',
+                        auto_adjust=True
                     )
                     
                     # Extract close prices for each ticker
@@ -1344,7 +1345,7 @@ if df is not None:
                                     hovermode='x unified'
                                 )
                                 
-                                st.plotly_chart(fig_comparison, use_container_width=True)
+                                st.plotly_chart(fig_comparison, width="stretch")
                                 
                                 # Show performance summary
                                 portfolio_total_return = portfolio_return_series.iloc[-1]
