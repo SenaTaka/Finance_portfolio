@@ -78,11 +78,11 @@ class PortfolioCalculator:
             if len(hist) > 1:
                 returns = hist['Close'].pct_change().dropna()
                 sigma = returns.std() * np.sqrt(252) * 100
-                
+
                 mean_return = returns.mean() * 252 * 100
                 risk_free_rate = 4.0
                 if sigma > 0:
-                sharpe = (mean_return - risk_free_rate) / sigma
+                    sharpe = (mean_return - risk_free_rate) / sigma
 
             return {
                 'price': current_price,
@@ -200,6 +200,6 @@ if __name__ == "__main__":
     target_file = "portfolio.csv"
     if len(sys.argv) > 1:
         target_file = sys.argv[1]
-    
+
     calculator = PortfolioCalculator(target_file)
     calculator.run()
