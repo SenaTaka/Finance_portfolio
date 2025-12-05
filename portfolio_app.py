@@ -819,7 +819,7 @@ if df is not None:
         "PER": st.column_config.NumberColumn("PER", format="%.2f"),
         "sigma": st.column_config.NumberColumn("Volatility (σ)", format="%.2f%%"),
         "sharpe": st.column_config.NumberColumn("Sharpe Ratio", format="%.2f"),
-        "dividend_yield": st.column_config.NumberColumn("Dividend Yield", format="%.2f%%"),
+        "dividend_yield": st.column_config.NumberColumn("Dividend Yield", format="%.2f"),
         "value": st.column_config.NumberColumn("Value (USD)", format="$%.2f"),
         "value_jp": st.column_config.NumberColumn("Value (JPY)", format="¥%.0f"),
         "ratio": st.column_config.NumberColumn("Ratio", format="%.2f%%"),
