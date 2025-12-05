@@ -65,9 +65,11 @@ class PortfolioCalculator:
             # Get 1 day history
             hist = tnx.history(period="1d")
             if not hist.empty:
-                # ^TNX is in percent (e.g. 4.3), so divide by 100
-                self.risk_free_rate = hist['Close'].iloc[-1]
-                print(f"Current risk-free rate (^TNX): {self.risk_free_rate:.2f}%")
+                raw_rate = hist['Close'].iloc[-1]
+                # ^TNX is quoted 10x (e.g. 42.5 for 4.25%), so normalize to percent
+                rate = raw_rate / 10 if raw_rate > 20 else raw_rate
+                self.risk_free_rate = rate
+                print(f"現在のリスクフリーレート(^TNX): {self.risk_free_rate:.2f}%")
             else:
                 print("Failed to fetch risk-free rate. Using default value (4.0%).")
         except Exception as e:
