@@ -504,7 +504,7 @@ if df is not None:
             
             st.dataframe(
                 display_plan[['ticker', 'name', 'current_weight', 'target_weight', 'Action', 'Trade Amount (JPY)', 'Trade Shares']],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "current_weight": st.column_config.NumberColumn("Current %", format="%.2f%%"),
@@ -894,7 +894,7 @@ if df is not None:
                                 ])
                                 if not weights_df.empty:
                                     weights_df = weights_df.sort_values('Weight', ascending=False)
-                                    st.dataframe(weights_df, hide_index=True, use_container_width=True)
+                                    st.dataframe(weights_df, hide_index=True, width="stretch")
                     
                     # Add rebalancing recommendation
                     st.markdown("---")
@@ -951,7 +951,7 @@ if df is not None:
                                 trade_df = pd.DataFrame(trade_data)
                                 st.dataframe(
                                     trade_df,
-                                    use_container_width=True,
+                                    width="stretch",
                                     hide_index=True,
                                     column_config={
                                         'Trade (JPY)': st.column_config.NumberColumn(format="¥%d")
@@ -999,7 +999,7 @@ if df is not None:
         else:
             st.dataframe(
                 suggestion_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "ratio": st.column_config.NumberColumn("Current %", format="%.2f%%"),
@@ -1417,4 +1417,4 @@ if df is not None:
         "delta_value_jp": st.column_config.NumberColumn("Rebalance (JPY)", format="¥%.0f"),
     }
 
-    st.dataframe(df, use_container_width=True, column_config=column_config, hide_index=True)
+    st.dataframe(df, width="stretch", column_config=column_config, hide_index=True)
