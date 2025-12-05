@@ -269,7 +269,7 @@ if df is not None:
                 names_col = 'ticker'
 
             fig_pie = px.pie(plot_df, values='value_jp', names=names_col, title='Portfolio Allocation by Value (JPY)', hole=0.4)
-            fig_pie.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}')
+            fig_pie.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}<extra></extra>')
             apply_mobile_layout(fig_pie)
             st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -279,7 +279,7 @@ if df is not None:
             # Group by sector
             sector_df = df.groupby('sector')['value_jp'].sum().reset_index()
             fig_sector = px.pie(sector_df, values='value_jp', names='sector', title='Portfolio Allocation by Sector', hole=0.4)
-            fig_sector.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}')
+            fig_sector.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}<extra></extra>')
             apply_mobile_layout(fig_sector)
             st.plotly_chart(fig_sector, use_container_width=True)
         else:
@@ -477,7 +477,7 @@ if df is not None:
                 st.write("Regional exposure")
                 st.dataframe(region_data, hide_index=True)
                 fig_region = px.pie(region_data, values='value_jp', names='region', title='Region Allocation', hole=0.3)
-                fig_region.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}')
+                fig_region.update_traces(textposition='none', hovertemplate='%{label}<br>%{value:,.0f} JPY<br>%{percent}<extra></extra>')
                 apply_mobile_layout(fig_region)
                 st.plotly_chart(fig_region, use_container_width=True)
     else:
