@@ -79,12 +79,12 @@ class PortfolioCalculator:
             if len(hist) > 1:
                 returns = hist['Close'].pct_change().dropna()
                 sigma = returns.std() * np.sqrt(252) * 100
-                
+
                 mean_return = returns.mean() * 252 * 100
                 risk_free_rate = 4.0
                 if sigma > 0:
                     sharpe = (mean_return - risk_free_rate) / sigma
-            
+
             return {
                 'price': current_price,
                 'PER': per,
@@ -92,8 +92,9 @@ class PortfolioCalculator:
                 'sharpe': sharpe,
                 'currency': currency,
                 'name': name,
-                'sector': sector,
-                'history': hist['Close'] if not hist.empty else None
+                'sector': info.get('sector'),
+                'industry': info.get('industry'),
+                'country': info.get('country'),
             }
         except Exception as e:
             print(f"{ticker}: データ取得エラー - {e}")
@@ -205,7 +206,10 @@ class PortfolioCalculator:
         result_df['usd_jpy_rate'] = self.usd_jpy
         
         # カラム順序を整える
-        cols = ['ticker', 'name', 'sector', 'shares', 'currency', 'price', 'value', 'value_jp', 'ratio', 'PER', 'sigma', 'sharpe', 'usd_jpy_rate']
+        cols = [
+            'ticker', 'name', 'shares', 'currency', 'price', 'value', 'value_jp', 'ratio',
+            'PER', 'sigma', 'sharpe', 'sector', 'industry', 'country', 'usd_jpy_rate'
+        ]
         # 実際に存在するカラムのみ
         cols = [c for c in cols if c in result_df.columns]
         
@@ -216,6 +220,6 @@ if __name__ == "__main__":
     target_file = "portfolio.csv"
     if len(sys.argv) > 1:
         target_file = sys.argv[1]
-    
+
     calculator = PortfolioCalculator(target_file)
     calculator.run()
