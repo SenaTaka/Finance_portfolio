@@ -43,6 +43,7 @@ if st.sidebar.button("🔄 Update Data"):
 view_mode = st.sidebar.radio("View Mode", ["Combined (Latest)", "US History", "JP History"])
 
 df = None
+selected_file = None
 
 if view_mode == "Combined (Latest)":
     # Find latest US and JP results
@@ -166,33 +167,39 @@ if df is not None:
                 st.write("Insufficient data for Risk analysis.")
     
     with tab2:
-        # Try to find corresponding correlation file
-        # Logic: find corr file with same timestamp as selected result file
-        # Result file format: ..._result_YYYYMMDD_HHMMSS.csv
-        # Corr file format: ..._corr_YYYYMMDD_HHMMSS.csv
-        
+        # Identify files to show correlation for
+        files_to_show = []
         if selected_file:
-            # Extract timestamp
+            files_to_show.append(selected_file)
+        elif view_mode == "Combined (Latest)":
+            # Find latest files again
+            us = glob.glob(os.path.join("output", "portfolio_result_*.csv"))
+            jp = glob.glob(os.path.join("output", "portfolio_jp_result_*.csv"))
+            if us: files_to_show.append(sorted(us, key=os.path.getmtime, reverse=True)[0])
+            if jp: files_to_show.append(sorted(jp, key=os.path.getmtime, reverse=True)[0])
+            
+        if files_to_show:
             import re
-            match = re.search(r'_result_(\d{8}_\d{6})\.csv', selected_file)
-            if match:
-                timestamp = match.group(1)
-                # Determine prefix based on view mode or file name
-                if "portfolio_jp" in selected_file:
-                    prefix = "portfolio_jp"
-                else:
-                    prefix = "portfolio"
-                
-                corr_file = os.path.join("output", f"{prefix}_corr_{timestamp}.csv")
-                
-                if os.path.exists(corr_file):
-                    corr_df = pd.read_csv(corr_file, index_col=0)
-                    fig_corr = px.imshow(corr_df, text_auto=True, title="Correlation Matrix (1 Year Daily Returns)")
-                    st.plotly_chart(fig_corr, use_container_width=True)
-                else:
-                    st.info("Correlation data not found for this snapshot.")
-            else:
-                st.info("Could not determine timestamp for correlation data.")
+            for f_path in files_to_show:
+                match = re.search(r'_result_(\d{8}_\d{6})\.csv', f_path)
+                if match:
+                    timestamp = match.group(1)
+                    # Determine prefix
+                    if "portfolio_jp" in f_path:
+                        prefix = "portfolio_jp"
+                        title_suffix = "(Japan)"
+                    else:
+                        prefix = "portfolio"
+                        title_suffix = "(US)"
+                    
+                    corr_file = os.path.join("output", f"{prefix}_corr_{timestamp}.csv")
+                    
+                    if os.path.exists(corr_file):
+                        corr_df = pd.read_csv(corr_file, index_col=0)
+                        fig_corr = px.imshow(corr_df, text_auto=True, title=f"Correlation Matrix {title_suffix}")
+                        st.plotly_chart(fig_corr, use_container_width=True)
+                    else:
+                        st.info(f"Correlation data not found for {os.path.basename(f_path)}")
         else:
             st.info("Select a specific file to view correlation matrix.")
 
