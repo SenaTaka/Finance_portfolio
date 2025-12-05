@@ -317,7 +317,9 @@ def get_portfolio_suggestions(
     )
     suggestions['max_sharpe'] = {
         'name': 'Maximum Sharpe Ratio Portfolio',
+        'name_jp': '最大シャープレシオ・ポートフォリオ',
         'description': 'Portfolio with the highest risk-adjusted return',
+        'description_jp': 'リスク調整後リターンが最も高い配分',
         'weights': dict(zip(tickers, max_sharpe['weights'])),
         'expected_return': max_sharpe['return'] * 100,
         'volatility': max_sharpe['volatility'] * 100,
@@ -328,7 +330,9 @@ def get_portfolio_suggestions(
     min_vol = find_min_volatility_portfolio(expected_returns, cov_matrix, allow_short=False)
     suggestions['min_volatility'] = {
         'name': 'Minimum Volatility Portfolio',
+        'name_jp': '最小ボラティリティ・ポートフォリオ',
         'description': 'Portfolio with the lowest risk',
+        'description_jp': 'リスクが最も低い配分',
         'weights': dict(zip(tickers, min_vol['weights'])),
         'expected_return': min_vol['return'] * 100,
         'volatility': min_vol['volatility'] * 100,
@@ -342,7 +346,9 @@ def get_portfolio_suggestions(
         )
         suggestions['current'] = {
             'name': 'Current Portfolio',
+            'name_jp': '現在のポートフォリオ',
             'description': 'Your current portfolio allocation',
+            'description_jp': '現在の保有状況に基づく配分',
             'weights': dict(zip(tickers, current_weights)),
             'expected_return': current_metrics['return'] * 100,
             'volatility': current_metrics['volatility'] * 100,
@@ -357,7 +363,9 @@ def get_portfolio_suggestions(
     )
     suggestions['equal_weight'] = {
         'name': 'Equal Weight Portfolio',
+        'name_jp': '均等加重ポートフォリオ',
         'description': 'Simple equal allocation to all assets',
+        'description_jp': 'すべての資産に均等に配分',
         'weights': dict(zip(tickers, equal_weights)),
         'expected_return': equal_metrics['return'] * 100,
         'volatility': equal_metrics['volatility'] * 100,
