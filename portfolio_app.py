@@ -93,8 +93,32 @@ st.markdown("""
 
 st.title("Sena Investment")
 
+# Placeholder for data update timestamp (will be populated after loading files)
+data_timestamp_placeholder = st.empty()
+
 # Mobile-friendly chart layout constants
 MOBILE_TICK_ANGLE = -45
+
+
+def extract_timestamp_from_filename(filename: str) -> str | None:
+    """Extract and format the timestamp from a result file name.
+    
+    Args:
+        filename: The filename containing a timestamp in format YYYYMMDD_HHMMSS
+        
+    Returns:
+        Formatted timestamp string or None if not found
+    """
+    match = re.search(r'_result_(\d{8})_(\d{6})\.csv', filename)
+    if match:
+        date_str = match.group(1)
+        time_str = match.group(2)
+        try:
+            dt = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
+            return dt.strftime("%Y/%m/%d %H:%M:%S")
+        except ValueError:
+            return None
+    return None
 
 
 def apply_mobile_layout(fig, show_legend=True):
@@ -179,6 +203,7 @@ view_mode = st.sidebar.radio("View Mode", ["Combined (Latest)", "US History", "J
 
 df = None
 selected_file = None
+loaded_file_names = []  # Track loaded files for timestamp display
 
 if view_mode == "Combined (Latest)":
     # Find latest US and JP results
@@ -206,6 +231,7 @@ if view_mode == "Combined (Latest)":
             df['ratio'] = (df['value_jp'] / total_val_jp * 100).round(2)
         
         st.sidebar.info(f"Loaded: {', '.join(loaded_files)}")
+        loaded_file_names = loaded_files
     else:
         st.info("No result files found to combine.")
 
@@ -224,14 +250,33 @@ else:
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
+        loaded_file_names = [uploaded_file.name]
     elif selected_file:
         df = pd.read_csv(selected_file)
+        loaded_file_names = [os.path.basename(selected_file)]
     elif files:
         # Default to the latest file if nothing selected
         st.sidebar.info(f"Auto-loading latest file: {os.path.basename(files[0])}")
         df = pd.read_csv(files[0])
+        loaded_file_names = [os.path.basename(files[0])]
     else:
         st.info(f"No {view_mode} files found. Please upload or run update.")
+
+# Display data update timestamp near the title
+if loaded_file_names:
+    timestamps = []
+    for fname in loaded_file_names:
+        ts = extract_timestamp_from_filename(fname)
+        if ts:
+            # Add source indicator for combined view
+            if "portfolio_jp" in fname:
+                timestamps.append(f"JP: {ts}")
+            elif "portfolio_result" in fname:
+                timestamps.append(f"US: {ts}")
+            else:
+                timestamps.append(ts)
+    if timestamps:
+        data_timestamp_placeholder.caption(f"📅 データ更新日時: {' / '.join(timestamps)}")
 
 if df is not None:
     # Basic stats
