@@ -320,6 +320,35 @@ class TestBacktestPortfolio(unittest.TestCase):
         with self.assertRaises(ValueError):
             backtest_portfolio([0.5, 0.5], short_df)
 
+    def test_backtest_caps_extreme_annualized_return(self):
+        """Extreme daily returns should not produce astronomical annualized values."""
+        dates = pd.date_range("2024-01-01", periods=30, freq="D")
+        # 10% daily gain - would previously produce 2.7 trillion % annualized
+        prices = pd.Series([100 * (1.1 ** i) for i in range(30)], index=dates)
+        price_df = pd.DataFrame({"ASSET": prices})
+
+        result = backtest_portfolio({"ASSET": 1.0}, price_df)
+
+        # Total return should be accurate (about 1486%)
+        self.assertAlmostEqual(result["metrics"]["total_return"], 14.8631, places=2)
+
+        # Annualized return should be capped at 1000% (10x), not astronomical
+        self.assertLessEqual(result["metrics"]["annualized_return"], 10.0)  # 1000%
+        self.assertGreater(result["metrics"]["annualized_return"], 0)
+
+    def test_backtest_handles_complete_loss(self):
+        """Complete loss should result in -100% annualized return."""
+        dates = pd.date_range("2024-01-01", periods=30, freq="D")
+        # Prices decline to near zero
+        prices = pd.Series([100 * (0.8 ** i) for i in range(30)], index=dates)
+        prices.iloc[-1] = 0.0001  # Near complete loss
+        price_df = pd.DataFrame({"ASSET": prices})
+
+        result = backtest_portfolio({"ASSET": 1.0}, price_df)
+
+        # Annualized return should be -100% for complete loss
+        self.assertAlmostEqual(result["metrics"]["annualized_return"], -1.0, places=2)
+
 
 if __name__ == "__main__":
     unittest.main()
