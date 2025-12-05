@@ -655,8 +655,14 @@ if df is not None:
             
             if not sp500_hist.empty:
                 # Get historical data for portfolio tickers using batch download
-                tickers_in_portfolio = df['ticker'].tolist()
-                shares_dict = dict(zip(df['ticker'], df['shares']))
+                # Filter to USD-only stocks for fair comparison with S&P 500 (a US market index)
+                if 'currency' in df.columns:
+                    usd_df = df[df['currency'] == 'USD']
+                else:
+                    usd_df = df
+                
+                tickers_in_portfolio = usd_df['ticker'].tolist()
+                shares_dict = dict(zip(usd_df['ticker'], usd_df['shares']))
                 
                 # Filter tickers with positive shares
                 active_tickers = [t for t in tickers_in_portfolio if shares_dict.get(t, 0) > 0]
@@ -796,7 +802,7 @@ if df is not None:
                     else:
                         st.info("Unable to fetch historical data for portfolio tickers.")
                 else:
-                    st.info("No active holdings found in portfolio.")
+                    st.info("No active USD holdings found in portfolio. S&P 500 comparison requires USD-denominated stocks.")
             else:
                 st.info("Unable to fetch S&P 500 data.")
         except Exception as e:
