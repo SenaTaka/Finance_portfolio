@@ -15,6 +15,11 @@
    - ポートフォリオ全体に対する各銘柄の構成比率を計算します。
    - 構成比率の降順でソートします。
 4. **結果保存**: 計算結果をタイムスタンプ付きのCSVファイルとして保存します。
+5. **キャッシュ機能**: APIリクエストの負荷を軽減するため、データをキャッシュします。
+   - **メタデータ（社名、セクター、業種、国）**: 1週間キャッシュ
+   - **ボラティリティ・シャープレシオ**: 24時間キャッシュ
+   - **株価**: 15分間キャッシュ
+   - キャッシュは `data/ticker_cache.json` に保存されます。
 
 ## 必要要件
 以下のPythonライブラリが必要です。
@@ -29,11 +34,26 @@
 ## 使い方
 
 ```bash
-python portfolio_calculator.py [csv_file]
+python portfolio_calculator.py [csv_file] [--force-refresh]
 ```
 
 引数を省略した場合、デフォルトで `portfolio.csv` を読み込みます。
 `portfolio_jp.csv` などの別ファイルを指定することも可能です。
+
+### オプション
+- `--force-refresh` または `-f`: キャッシュを無視してすべてのデータをAPIから再取得します。
+
+### 例
+```bash
+# 通常実行（キャッシュを使用）
+python portfolio_calculator.py
+
+# キャッシュを無視して完全更新
+python portfolio_calculator.py --force-refresh
+
+# 日本株ポートフォリオを更新
+python portfolio_calculator.py portfolio_jp.csv
+```
 
 ## 入力ファイル形式 (CSV)
 以下のカラムを持つCSVファイルを用意してください。
@@ -65,6 +85,8 @@ streamlit run portfolio_app.py
 ### 機能
 - **統合ビュー (Combined View)**: デフォルトで `portfolio.csv` (米国株) と `portfolio_jp.csv` (日本株) の最新結果を自動的に結合し、一つのポートフォリオとして表示します。
 - **データ更新機能**: サイドバーの「Update Data」ボタンを押すと、`portfolio.csv` および `portfolio_jp.csv` の最新情報を取得して再計算を行い、表示を更新します。
+  - **キャッシュ機能**: 通常の更新ではキャッシュを活用し、APIリクエスト数を削減します。
+  - **完全更新オプション**: 「Force full refresh」チェックボックスをオンにすると、キャッシュを無視してすべてのデータを再取得します。
 - **履歴閲覧 (US/JP History)**: サイドバーで「US History」または「JP History」を選択すると、それぞれの過去の履歴ファイルを個別に選択して閲覧できます。
 - **高度な分析**:
   - **セクター分析**: 業種別の資産配分を円グラフで表示します。

@@ -1,17 +1,60 @@
 import pandas as pd
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 import sys
 import os
 import requests
 from bs4 import BeautifulSoup
 import re
+import json
+import argparse
+
+# Cache configuration
+CACHE_DIR = "data"
+CACHE_FILE = os.path.join(CACHE_DIR, "ticker_cache.json")
+# Cache TTL settings (in hours)
+CACHE_TTL_METADATA = 24 * 7  # 1 week for sector, industry, country, name
+CACHE_TTL_VOLATILITY = 24  # 1 day for volatility/sharpe calculations
+CACHE_TTL_PRICE = 0.25  # 15 minutes for price data
+
+
+def load_cache():
+    """Load cache from file."""
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {}
+
+
+def save_cache(cache):
+    """Save cache to file."""
+    if not os.path.exists(CACHE_DIR):
+        os.makedirs(CACHE_DIR)
+    with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
+
+
+def is_cache_valid(cached_time_str, ttl_hours):
+    """Check if cached data is still valid based on TTL."""
+    if not cached_time_str:
+        return False
+    try:
+        cached_time = datetime.fromisoformat(cached_time_str)
+        return datetime.now() - cached_time < timedelta(hours=ttl_hours)
+    except (ValueError, TypeError):
+        return False
+
 
 class PortfolioCalculator:
-    def __init__(self, csv_file):
+    def __init__(self, csv_file, force_refresh=False):
         self.csv_file = csv_file
         self.usd_jpy = 1.0
+        self.force_refresh = force_refresh
+        self.cache = load_cache()
         
     def get_exchange_rate(self):
         """USD/JPYレートを取得"""
@@ -46,63 +89,126 @@ class PortfolioCalculator:
         return None
 
     def get_ticker_data(self, ticker):
-        """個別銘柄のデータを取得"""
+        """個別銘柄のデータを取得（キャッシュ対応）"""
         try:
+            cached = self.cache.get(ticker, {})
+            now_str = datetime.now().isoformat()
+            
+            # Determine what needs to be fetched
+            need_metadata = self.force_refresh or not is_cache_valid(
+                cached.get('metadata_updated'), CACHE_TTL_METADATA
+            )
+            need_volatility = self.force_refresh or not is_cache_valid(
+                cached.get('volatility_updated'), CACHE_TTL_VOLATILITY
+            )
+            need_price = self.force_refresh or not is_cache_valid(
+                cached.get('price_updated'), CACHE_TTL_PRICE
+            )
+            
             stock = yf.Ticker(ticker)
-            hist = stock.history(period='1y')
+            hist = None
+            current_price = None
             
-            if hist.empty:
-                return None
+            # Fetch historical data only if needed for volatility calculation
+            if need_volatility:
+                print(f"  {ticker}: 過去1年分のデータを取得中...")
+                hist = stock.history(period='1y')
+                if hist.empty:
+                    return None
+                current_price = hist['Close'].iloc[-1]
                 
-            current_price = hist['Close'].iloc[-1]
+                # Calculate volatility and sharpe
+                sigma = None
+                sharpe = None
+                if len(hist) > 1:
+                    returns = hist['Close'].pct_change().dropna()
+                    sigma = returns.std() * np.sqrt(252) * 100
+                    mean_return = returns.mean() * 252 * 100
+                    risk_free_rate = 4.0
+                    if sigma > 0:
+                        sharpe = (mean_return - risk_free_rate) / sigma
+                
+                # Update cache with volatility data
+                cached['sigma'] = sigma
+                cached['sharpe'] = sharpe
+                cached['volatility_updated'] = now_str
+                # Store history as list for correlation matrix
+                cached['history'] = hist['Close'].tolist()
+                cached['history_index'] = [d.isoformat() for d in hist.index]
+            elif need_price:
+                # Only fetch recent price data
+                print(f"  {ticker}: 現在価格を取得中...")
+                hist = stock.history(period='1d')
+                if hist.empty:
+                    # Fall back to cached price if available
+                    current_price = cached.get('price')
+                else:
+                    current_price = hist['Close'].iloc[-1]
+            else:
+                # Use cached price
+                print(f"  {ticker}: キャッシュからデータを使用")
+                current_price = cached.get('price')
             
-            # PER
-            info = stock.info
-            per = info.get('trailingPE', None)
-            currency = info.get('currency', 'USD')
-            sector = info.get('sector', 'Unknown')
+            # Update price cache
+            if current_price is not None:
+                cached['price'] = current_price
+                cached['price_updated'] = now_str
             
-            # 社名取得
-            name = None
-            # 日本株(.T)の場合は日本語名取得を試みる
-            if ticker.endswith('.T'):
-                name = self.get_japanese_name(ticker)
+            # Fetch metadata only if needed
+            if need_metadata:
+                print(f"  {ticker}: メタデータを取得中...")
+                info = stock.info
+                
+                # PER and dividend yield (can change but cached with metadata)
+                cached['PER'] = info.get('trailingPE')
+                dividend_yield = info.get('dividendYield')
+                if dividend_yield is not None:
+                    dividend_yield = dividend_yield * 100
+                cached['dividend_yield'] = dividend_yield
+                cached['currency'] = info.get('currency', 'USD')
+                cached['sector'] = info.get('sector')
+                cached['industry'] = info.get('industry')
+                cached['country'] = info.get('country')
+                
+                # 社名取得
+                name = None
+                if ticker.endswith('.T'):
+                    name = self.get_japanese_name(ticker)
+                if not name:
+                    name = info.get('longName') or info.get('shortName') or ticker
+                cached['name'] = name
+                cached['metadata_updated'] = now_str
             
-            # 取得できなかった場合、または日本株以外はyfinanceの情報を使用
-            if not name:
-                name = info.get('longName') or info.get('shortName') or ticker
+            # Update main cache
+            self.cache[ticker] = cached
             
-            # Volatility & Sharpe
-            sigma = None
-            sharpe = None
-            
-            if len(hist) > 1:
-                returns = hist['Close'].pct_change().dropna()
-                sigma = returns.std() * np.sqrt(252) * 100
-
-                mean_return = returns.mean() * 252 * 100
-                risk_free_rate = 4.0
-                if sigma > 0:
-                    sharpe = (mean_return - risk_free_rate) / sigma
-
-            # 配当利回り
-            dividend_yield = info.get('dividendYield')
-            if dividend_yield is not None:
-                dividend_yield = dividend_yield * 100  # パーセント表示
-            
-            return {
-                'price': current_price,
-                'PER': per,
-                'sigma': sigma,
-                'sharpe': sharpe,
-                'dividend_yield': dividend_yield,
-                'currency': currency,
-                'name': name,
-                'sector': info.get('sector'),
-                'industry': info.get('industry'),
-                'country': info.get('country'),
-                'history': hist['Close'],  # 相関行列計算用
+            # Build result from cache
+            result = {
+                'price': cached.get('price'),
+                'PER': cached.get('PER'),
+                'sigma': cached.get('sigma'),
+                'sharpe': cached.get('sharpe'),
+                'dividend_yield': cached.get('dividend_yield'),
+                'currency': cached.get('currency', 'USD'),
+                'name': cached.get('name', ticker),
+                'sector': cached.get('sector'),
+                'industry': cached.get('industry'),
+                'country': cached.get('country'),
             }
+            
+            # Reconstruct history for correlation matrix if available
+            if cached.get('history') and cached.get('history_index'):
+                try:
+                    result['history'] = pd.Series(
+                        cached['history'],
+                        index=pd.to_datetime(cached['history_index'])
+                    )
+                except (ValueError, TypeError) as e:
+                    print(f"  {ticker}: 履歴データの復元に失敗: {e}")
+                    result['history'] = None
+            
+            return result
+            
         except Exception as e:
             print(f"{ticker}: データ取得エラー - {e}")
             return None
@@ -223,11 +329,34 @@ class PortfolioCalculator:
         
         result_df[cols].to_csv(output_file, index=False)
         print(f"\n結果を {output_file} に保存しました")
+        
+        # Save cache
+        save_cache(self.cache)
+        print("キャッシュを保存しました")
 
 if __name__ == "__main__":
-    target_file = "portfolio.csv"
-    if len(sys.argv) > 1:
-        target_file = sys.argv[1]
-
-    calculator = PortfolioCalculator(target_file)
+    parser = argparse.ArgumentParser(
+        description="ポートフォリオの評価額と指標を計算します",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用例:
+  python portfolio_calculator.py                    # portfolio.csvを使用
+  python portfolio_calculator.py portfolio_jp.csv  # 日本株ポートフォリオを使用
+  python portfolio_calculator.py --force-refresh   # キャッシュを無視して完全更新
+"""
+    )
+    parser.add_argument(
+        "csv_file",
+        nargs="?",
+        default="portfolio.csv",
+        help="入力CSVファイル (デフォルト: portfolio.csv)"
+    )
+    parser.add_argument(
+        "-f", "--force-refresh",
+        action="store_true",
+        help="キャッシュを無視してすべてのデータをAPIから再取得"
+    )
+    
+    args = parser.parse_args()
+    calculator = PortfolioCalculator(args.csv_file, force_refresh=args.force_refresh)
     calculator.run()
