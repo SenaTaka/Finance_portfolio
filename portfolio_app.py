@@ -343,43 +343,38 @@ if df is not None:
             # Risk (Sigma) vs Return (derived from Sharpe * Sigma + RiskFree)
             # Or just Risk vs Sharpe
             # Let's do Risk (Volatility) vs Sharpe Ratio for now as it's available
-            scatter_df = df.dropna(subset=['sigma', 'sharpe'])
+            scatter_df = df.dropna(subset=['sigma', 'sharpe']).copy()
             if not scatter_df.empty:
-                # Create custom hover template for better mobile readability
-                hover_template = (
-                    "<b>%{customdata[0]}</b><br>" +
-                    "Ticker: %{customdata[1]}<br>" +
-                    "Volatility: %{x:.1f}%<br>" +
-                    "Sharpe Ratio: %{y:.2f}<br>" +
-                    "Value: ¥%{customdata[2]:,.0f}<extra></extra>"
-                )
-                
-                # Prepare custom data for hover
-                custom_data_cols = []
+                # Create label column for display (Name if available, otherwise Ticker)
                 if 'name' in scatter_df.columns:
-                    custom_data_cols.append(scatter_df['name'].fillna(scatter_df['ticker']))
+                    scatter_df['display_name'] = scatter_df['name'].fillna(scatter_df['ticker'])
                 else:
-                    custom_data_cols.append(scatter_df['ticker'])
-                custom_data_cols.append(scatter_df['ticker'])
-                custom_data_cols.append(scatter_df['value_jp'] if 'value_jp' in scatter_df.columns else [0]*len(scatter_df))
+                    scatter_df['display_name'] = scatter_df['ticker']
                 
-                custom_data = np.column_stack(custom_data_cols)
+                # Ensure value_jp exists for hover
+                if 'value_jp' not in scatter_df.columns:
+                    scatter_df['value_jp'] = 0
                 
                 fig_scatter = px.scatter(
                     scatter_df, 
                     x='sigma', 
                     y='sharpe', 
                     size='value_jp', 
-                    color='ticker',
+                    color='display_name',
+                    hover_data={
+                        'display_name': True,
+                        'ticker': True,
+                        'sigma': ':.1f',
+                        'sharpe': ':.2f',
+                        'value_jp': ':,.0f'
+                    },
                     title='Risk (Volatility) vs Efficiency (Sharpe Ratio)',
-                    labels={'sigma': 'Volatility (Risk) [%]', 'sharpe': 'Sharpe Ratio'}
-                )
-                
-                # Update traces to remove text labels and improve hover
-                fig_scatter.update_traces(
-                    customdata=custom_data,
-                    hovertemplate=hover_template,
-                    textposition=None
+                    labels={
+                        'sigma': 'Volatility (Risk) [%]', 
+                        'sharpe': 'Sharpe Ratio',
+                        'display_name': 'Name',
+                        'value_jp': 'Value (JPY)'
+                    }
                 )
                 
                 # Apply mobile-optimized layout: hide legend and increase chart area
