@@ -45,60 +45,60 @@ st.set_page_config(page_title="Sena Investment", layout="wide")
 # Mobile optimization CSS
 st.markdown("""
 <style>
-/* モバイル向けレスポンシブCSS */
+/* Mobile responsive CSS */
 @media (max-width: 768px) {
-    /* サイドバーのボタンを大きくしてタッチ操作しやすく */
+    /* Make sidebar buttons larger for easier touch operation */
     .stButton > button {
         min-height: 48px;
         font-size: 16px;
     }
     
-    /* メトリクスのフォントサイズ調整 */
+    /* Adjust metrics font size */
     [data-testid="stMetricValue"] {
         font-size: 1.5rem !important;
     }
     
-    /* データフレームのスクロール対応 */
+    /* Enable horizontal scroll for data frames */
     .stDataFrame {
         overflow-x: auto;
     }
     
-    /* カラムの縦並び対応 */
+    /* Stack columns vertically */
     [data-testid="column"] {
         width: 100% !important;
         flex: 1 1 100% !important;
     }
     
-    /* タブのフォントサイズ調整 */
+    /* Adjust tab font size */
     .stTabs [data-baseweb="tab"] {
         font-size: 14px;
         padding: 10px 16px;
     }
     
-    /* スライダーの操作領域を大きく */
+    /* Increase slider touch area */
     .stSlider > div > div {
         padding: 10px 0;
     }
     
-    /* セレクトボックスの高さ調整 */
+    /* Adjust select box height */
     .stSelectbox > div > div {
         min-height: 44px;
     }
     
-    /* チャートの余白調整 */
+    /* Adjust chart margins */
     .js-plotly-plot {
         margin-bottom: 20px;
     }
 }
 
-/* タッチデバイス向け: ホバー状態の無効化とタッチ領域拡大 */
+/* Touch device: disable hover state and increase touch area */
 @media (hover: none) and (pointer: coarse) {
     .stButton > button {
         min-height: 48px;
         min-width: 48px;
     }
     
-    /* サイドバーの入力要素を大きく */
+    /* Increase sidebar input element size */
     .stSidebar .stNumberInput input,
     .stSidebar .stTextInput input {
         font-size: 16px;
@@ -106,7 +106,7 @@ st.markdown("""
     }
 }
 
-/* タッチデバイス向けのスクロール動作を最適化: 水平・垂直方向のパン操作を許可 */
+/* Optimize scroll behavior for touch devices: allow horizontal and vertical panning */
 [data-testid="stAppViewContainer"] {
     touch-action: pan-x pan-y;
 }
@@ -192,7 +192,7 @@ if auto_refresh:
     if st_autorefresh:
         st_autorefresh(interval=refresh_minutes * 60 * 1000, key="portfolio_autorefresh")
     else:
-        st.sidebar.warning("streamlit_autorefresh が未インストールのため、自動再読み込みは無効です。")
+        st.sidebar.warning("streamlit_autorefresh is not installed. Auto-refresh is disabled.")
 
 alert_threshold = st.sidebar.number_input("Alert threshold for total value change (%)", min_value=1, max_value=50, value=5)
 
@@ -302,7 +302,7 @@ if loaded_file_names:
             else:
                 timestamps.append(ts)
     if timestamps:
-        data_timestamp_placeholder.caption(f"📅 データ更新日時: {' / '.join(timestamps)}")
+        data_timestamp_placeholder.caption(f"📅 Data Updated: {' / '.join(timestamps)}")
 
 if df is not None:
     # Basic stats
@@ -412,7 +412,7 @@ if df is not None:
                 )
                 
                 st.plotly_chart(fig_scatter, use_container_width=True)
-                st.caption("💡 タップして銘柄の詳細を表示")
+                st.caption("💡 Tap to view stock details")
             else:
                 st.write("Insufficient data for Risk analysis.")
     
@@ -469,13 +469,13 @@ if df is not None:
 
     with tab4:
         st.header("Sharpe Optimized Portfolio")
-        st.write("各銘柄のSharpeレシオに基づいてポートフォリオを最適化した場合の提案配分と売買プランを表示します。")
+        st.write("Displays the proposed allocation and trade plan when optimizing the portfolio based on each stock's Sharpe ratio.")
         
         col_a, col_b = st.columns(2)
         with col_a:
-            param_a = st.slider("Sharpe 指数の強調度 a", min_value=0.5, max_value=3.0, value=1.0, step=0.5, key="slider_sharpe_a")
+            param_a = st.slider("Sharpe Ratio Emphasis (a)", min_value=0.5, max_value=3.0, value=1.0, step=0.5, key="slider_sharpe_a")
         with col_b:
-            param_b = st.slider("ボラティリティの強調度 b", min_value=0.5, max_value=3.0, value=1.0, step=0.5, key="slider_vol_b")
+            param_b = st.slider("Volatility Emphasis (b)", min_value=0.5, max_value=3.0, value=1.0, step=0.5, key="slider_vol_b")
             
         if 'sharpe' in df.columns and 'sigma' in df.columns:
             # Ensure numeric types for calculation
@@ -495,7 +495,7 @@ if df is not None:
             
             # Format for display
             display_plan = trade_plan_df.copy()
-            display_plan['Action'] = display_plan['diff_value_jp'].apply(lambda x: '買い' if x > 0 else '売り')
+            display_plan['Action'] = display_plan['diff_value_jp'].apply(lambda x: 'Buy' if x > 0 else 'Sell')
             display_plan['Trade Amount (JPY)'] = display_plan['diff_value_jp'].abs()
             display_plan['Trade Shares'] = display_plan['diff_shares'].apply(lambda x: int(x) if not pd.isna(x) else 0).abs()
             
@@ -504,7 +504,7 @@ if df is not None:
             
             st.dataframe(
                 display_plan[['ticker', 'name', 'current_weight', 'target_weight', 'Action', 'Trade Amount (JPY)', 'Trade Shares']],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "current_weight": st.column_config.NumberColumn("Current %", format="%.2f%%"),
@@ -605,13 +605,13 @@ if df is not None:
                         fig_sharpe.update_layout(title="Sharpe Ratio (Before vs After)", yaxis_title="Sharpe Ratio")
                         st.plotly_chart(fig_sharpe, use_container_width=True)
                         
-                        st.caption("※相関行列と各銘柄の統計値に基づいた概算値です。")
+                        st.caption("* Approximate values based on correlation matrix and each stock's statistics.")
                     else:
-                        st.info("相関データと銘柄が一致しません。")
+                        st.info("Correlation data does not match the stocks.")
                 else:
-                    st.info("相関行列データが見つかりません。Update Dataを実行してください。")
+                    st.info("Correlation matrix data not found. Please run Update Data.")
             except Exception as e:
-                st.warning(f"Sharpe Ratio比較グラフの作成中にエラーが発生しました: {e}")
+                st.warning(f"Error creating Sharpe Ratio comparison chart: {e}")
                 
         else:
             st.info("Sharpe Ratio data not available.")
@@ -857,7 +857,7 @@ if df is not None:
                             ))
                         
                         fig_ef.update_layout(
-                            title='Efficient Frontier (効率的フロンティア)',
+                            title='Efficient Frontier',
                             xaxis_title='Volatility (Risk) [%]',
                             yaxis_title='Expected Return [%]',
                             legend=dict(
@@ -876,18 +876,17 @@ if df is not None:
                     
                     with col2:
                         st.markdown("#### Portfolio Suggestions")
-                        st.markdown("##### ポートフォリオ提案")
                         
                         # Display suggestions as cards
                         for key, sug in suggestions.items():
-                            with st.expander(f"📊 {sug['name_jp']}", expanded=(key == 'max_sharpe')):
-                                st.markdown(f"**{sug['description_jp']}**")
-                                st.markdown(f"- 期待リターン: **{sug['expected_return']:.1f}%**")
-                                st.markdown(f"- ボラティリティ: **{sug['volatility']:.1f}%**")
-                                st.markdown(f"- シャープレシオ: **{sug['sharpe']:.2f}**")
+                            with st.expander(f"📊 {sug['name']}", expanded=(key == 'max_sharpe')):
+                                st.markdown(f"**{sug['description']}**")
+                                st.markdown(f"- Expected Return: **{sug['expected_return']:.1f}%**")
+                                st.markdown(f"- Volatility: **{sug['volatility']:.1f}%**")
+                                st.markdown(f"- Sharpe Ratio: **{sug['sharpe']:.2f}**")
                                 
                                 # Show weights
-                                st.markdown("**配分比率:**")
+                                st.markdown("**Allocation Weights:**")
                                 weights_df = pd.DataFrame([
                                     {'Ticker': t, 'Weight': f"{w*100:.1f}%"}
                                     for t, w in sug['weights'].items()
@@ -895,11 +894,11 @@ if df is not None:
                                 ])
                                 if not weights_df.empty:
                                     weights_df = weights_df.sort_values('Weight', ascending=False)
-                                    st.dataframe(weights_df, hide_index=True, use_container_width=True)
+                                    st.dataframe(weights_df, hide_index=True, width="stretch")
                     
                     # Add rebalancing recommendation
                     st.markdown("---")
-                    st.markdown("#### 🎯 Rebalancing Recommendation (リバランス推奨)")
+                    st.markdown("#### 🎯 Rebalancing Recommendation")
                     
                     if 'current' in suggestions:
                         current = suggestions['current']
@@ -945,31 +944,31 @@ if df is not None:
                                         'Current %': f"{current_weight*100:.1f}%",
                                         'Target %': f"{target_weight*100:.1f}%",
                                         'Trade (JPY)': int(trade_amount),
-                                        'Action': '買い' if trade_amount > 0 else '売り'
+                                        'Action': 'Buy' if trade_amount > 0 else 'Sell'
                                     })
                             
                             if trade_data:
                                 trade_df = pd.DataFrame(trade_data)
                                 st.dataframe(
                                     trade_df,
-                                    use_container_width=True,
+                                    width="stretch",
                                     hide_index=True,
                                     column_config={
                                         'Trade (JPY)': st.column_config.NumberColumn(format="¥%d")
                                     }
                                 )
                             else:
-                                st.info("現在のポートフォリオは最適配分に近いです。")
+                                st.info("Your current portfolio is close to optimal allocation.")
                     else:
-                        st.info("現在のポートフォリオの配分データがありません。")
+                        st.info("Current portfolio allocation data not available.")
                 else:
-                    st.info("効率的フロンティアの計算には、より多くの価格履歴データが必要です。")
+                    st.info("More price history data is required to calculate the efficient frontier.")
             except Exception as e:
-                st.warning(f"効率的フロンティアの計算中にエラーが発生しました: {e}")
+                st.warning(f"Error calculating efficient frontier: {e}")
         else:
-            st.info("効率的フロンティアの計算には、少なくとも2銘柄の価格データが必要です。「Update Data」を実行してデータを取得してください。")
+            st.info("At least 2 stocks with price data are required to calculate the efficient frontier. Please run 'Update Data' to fetch data.")
     else:
-        st.warning("効率的フロンティア機能を使用するには、scipy ライブラリが必要です。")
+        st.warning("The scipy library is required to use the efficient frontier feature.")
 
     st.divider()
     st.subheader("Rebalance Suggestions")
@@ -1000,7 +999,7 @@ if df is not None:
         else:
             st.dataframe(
                 suggestion_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "ratio": st.column_config.NumberColumn("Current %", format="%.2f%%"),
@@ -1418,4 +1417,4 @@ if df is not None:
         "delta_value_jp": st.column_config.NumberColumn("Rebalance (JPY)", format="¥%.0f"),
     }
 
-    st.dataframe(df, use_container_width=True, column_config=column_config, hide_index=True)
+    st.dataframe(df, width="stretch", column_config=column_config, hide_index=True)
