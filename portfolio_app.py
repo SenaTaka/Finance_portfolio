@@ -16,7 +16,92 @@ except ImportError:
 
 st.set_page_config(page_title="Sena Investment", layout="wide")
 
+# Mobile optimization CSS
+st.markdown("""
+<style>
+/* モバイル向けレスポンシブCSS */
+@media (max-width: 768px) {
+    /* サイドバーのボタンを大きくしてタッチ操作しやすく */
+    .stButton > button {
+        min-height: 48px;
+        font-size: 16px;
+    }
+    
+    /* メトリクスのフォントサイズ調整 */
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem !important;
+    }
+    
+    /* データフレームのスクロール対応 */
+    .stDataFrame {
+        overflow-x: auto;
+    }
+    
+    /* カラムの縦並び対応 */
+    [data-testid="column"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+    
+    /* タブのフォントサイズ調整 */
+    .stTabs [data-baseweb="tab"] {
+        font-size: 14px;
+        padding: 10px 16px;
+    }
+    
+    /* スライダーの操作領域を大きく */
+    .stSlider > div > div {
+        padding: 10px 0;
+    }
+    
+    /* セレクトボックスの高さ調整 */
+    .stSelectbox > div > div {
+        min-height: 44px;
+    }
+    
+    /* チャートの余白調整 */
+    .js-plotly-plot {
+        margin-bottom: 20px;
+    }
+}
+
+/* タッチデバイス向け: ホバー状態の無効化とタッチ領域拡大 */
+@media (hover: none) and (pointer: coarse) {
+    .stButton > button {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    /* サイドバーの入力要素を大きく */
+    .stSidebar .stNumberInput input,
+    .stSidebar .stTextInput input {
+        font-size: 16px;
+        min-height: 44px;
+    }
+}
+
+/* タッチデバイス向けのスクロール動作を最適化: 水平・垂直方向のパン操作を許可 */
+[data-testid="stAppViewContainer"] {
+    touch-action: pan-x pan-y;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("Sena Investment")
+
+# Mobile-friendly chart layout constants
+MOBILE_TICK_ANGLE = -45
+
+
+def apply_mobile_layout(fig, show_legend=True):
+    """Apply mobile-friendly layout settings to a Plotly figure."""
+    layout_config = dict(margin=dict(l=10, r=10, t=40, b=10))
+    if show_legend:
+        layout_config["legend"] = dict(
+            orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5
+        )
+    fig.update_layout(**layout_config)
+    return fig
 
 
 def get_region(country: str) -> str:
@@ -182,6 +267,7 @@ if df is not None:
                 names_col = 'ticker'
 
             fig_pie = px.pie(plot_df, values='value_jp', names=names_col, title='Portfolio Allocation by Value (JPY)', hole=0.4)
+            apply_mobile_layout(fig_pie)
             st.plotly_chart(fig_pie, use_container_width=True)
 
     with col2:
@@ -190,6 +276,7 @@ if df is not None:
             # Group by sector
             sector_df = df.groupby('sector')['value_jp'].sum().reset_index()
             fig_sector = px.pie(sector_df, values='value_jp', names='sector', title='Portfolio Allocation by Sector', hole=0.4)
+            apply_mobile_layout(fig_sector)
             st.plotly_chart(fig_sector, use_container_width=True)
         else:
             st.info("Sector data not available. Please update data.")
@@ -216,6 +303,7 @@ if df is not None:
                     title='Risk (Volatility) vs Efficiency (Sharpe Ratio)',
                     labels={'sigma': 'Volatility (Risk) [%]', 'sharpe': 'Sharpe Ratio'}
                 )
+                apply_mobile_layout(fig_scatter)
                 st.plotly_chart(fig_scatter, use_container_width=True)
             else:
                 st.write("Insufficient data for Risk analysis.")
@@ -251,6 +339,7 @@ if df is not None:
                     if os.path.exists(corr_file):
                         corr_df = pd.read_csv(corr_file, index_col=0)
                         fig_corr = px.imshow(corr_df, text_auto=True, title=f"Correlation Matrix {title_suffix}")
+                        apply_mobile_layout(fig_corr, show_legend=False)
                         st.plotly_chart(fig_corr, use_container_width=True)
                     else:
                         st.info(f"Correlation data not found for {os.path.basename(f_path)}")
@@ -264,6 +353,8 @@ if df is not None:
             plot_df = df.dropna(subset=['sharpe'])
             if not plot_df.empty:
                 fig_bar = px.bar(plot_df, x='ticker', y='sharpe', title='Sharpe Ratio by Ticker', color='ticker')
+                apply_mobile_layout(fig_bar)
+                fig_bar.update_layout(xaxis_tickangle=MOBILE_TICK_ANGLE)
                 st.plotly_chart(fig_bar, use_container_width=True)
             else:
                 st.write("No Sharpe Ratio data available.")
@@ -367,6 +458,8 @@ if df is not None:
                 st.write("Sector exposure")
                 st.dataframe(sector_data, hide_index=True)
                 fig_sector = px.bar(sector_data, x='sector', y='ratio', title='Sector Weight (%)', color='sector')
+                apply_mobile_layout(fig_sector)
+                fig_sector.update_layout(xaxis_tickangle=MOBILE_TICK_ANGLE)
                 st.plotly_chart(fig_sector, use_container_width=True)
 
         if 'region' in factor_cols:
@@ -380,6 +473,7 @@ if df is not None:
                 st.write("Regional exposure")
                 st.dataframe(region_data, hide_index=True)
                 fig_region = px.pie(region_data, values='value_jp', names='region', title='Region Allocation', hole=0.3)
+                apply_mobile_layout(fig_region)
                 st.plotly_chart(fig_region, use_container_width=True)
     else:
         st.info("Run update to capture sector and country metadata for factor views.")
