@@ -554,6 +554,8 @@ if df is not None:
                             ))
                         
                         # Add Max Sharpe portfolio
+                        # Note: hovertemplate uses f-string to embed values at definition time,
+                        # which is correct here since we want to display the calculated values
                         max_sharpe_data = suggestions['max_sharpe']
                         fig_ef.add_trace(go.Scatter(
                             x=[max_sharpe_data['volatility']],

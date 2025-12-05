@@ -30,6 +30,8 @@ def calculate_portfolio_metrics(
     """
     portfolio_return = np.sum(expected_returns * weights)
     portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+    # Return 0 for Sharpe ratio when volatility is zero (edge case with single risk-free asset)
+    # This avoids division by zero while indicating no risk-adjusted return advantage
     sharpe_ratio = (portfolio_return - risk_free_rate) / portfolio_volatility if portfolio_volatility > 0 else 0
     
     return {
@@ -385,6 +387,12 @@ def prepare_data_for_frontier(
         
     Returns:
         Tuple of (expected_returns, cov_matrix, tickers)
+        
+    Note:
+        This uses simple linear scaling for annualization, which assumes
+        returns are independently and identically distributed (i.i.d.).
+        This is a common approximation in practice but may not be fully
+        accurate for all market conditions.
     """
     # Calculate daily returns
     returns = price_history.pct_change().dropna()
@@ -392,10 +400,10 @@ def prepare_data_for_frontier(
     if returns.empty or len(returns) < 2:
         raise ValueError("Insufficient price history for calculation")
     
-    # Annualized expected returns
+    # Annualized expected returns (linear scaling of daily mean)
     expected_returns = returns.mean() * annual_trading_days
     
-    # Annualized covariance matrix
+    # Annualized covariance matrix (linear scaling assuming i.i.d. returns)
     cov_matrix = returns.cov() * annual_trading_days
     
     return expected_returns.values, cov_matrix.values, list(price_history.columns)
