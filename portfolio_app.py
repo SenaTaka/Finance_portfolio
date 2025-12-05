@@ -609,117 +609,149 @@ if df is not None:
             sp500_hist = sp500.history(start=start_date, end=end_date)
             
             if not sp500_hist.empty:
-                # Get historical data for each ticker in the portfolio
-                portfolio_hist = {}
+                # Get historical data for portfolio tickers using batch download
                 tickers_in_portfolio = df['ticker'].tolist()
                 shares_dict = dict(zip(df['ticker'], df['shares']))
                 
-                for ticker in tickers_in_portfolio:
-                    if shares_dict.get(ticker, 0) > 0:
-                        try:
-                            stock = yf.Ticker(ticker)
-                            hist = stock.history(start=start_date, end=end_date)
-                            if not hist.empty:
-                                portfolio_hist[ticker] = hist['Close']
-                        except Exception:
-                            pass
+                # Filter tickers with positive shares
+                active_tickers = [t for t in tickers_in_portfolio if shares_dict.get(t, 0) > 0]
                 
-                if portfolio_hist:
-                    # Create a DataFrame with all ticker prices
-                    price_df = pd.DataFrame(portfolio_hist)
+                if active_tickers:
+                    # Use batch download for efficiency
+                    portfolio_data = yf.download(
+                        active_tickers,
+                        start=start_date,
+                        end=end_date,
+                        progress=False,
+                        group_by='ticker'
+                    )
                     
-                    # Forward fill missing values and drop any remaining NaN rows
-                    price_df = price_df.ffill().bfill().dropna()
+                    # Extract close prices for each ticker
+                    portfolio_hist = {}
+                    for ticker in active_tickers:
+                        try:
+                            if len(active_tickers) == 1:
+                                # Single ticker case: data structure is different
+                                if 'Close' in portfolio_data.columns:
+                                    close_data = portfolio_data['Close']
+                                    if not close_data.empty:
+                                        portfolio_hist[ticker] = close_data
+                            else:
+                                # Multiple tickers case
+                                if ticker in portfolio_data.columns.get_level_values(0):
+                                    close_data = portfolio_data[ticker]['Close']
+                                    if not close_data.empty and close_data.notna().sum() > 0:
+                                        portfolio_hist[ticker] = close_data
+                        except (KeyError, TypeError):
+                            continue
                     
-                    if not price_df.empty:
-                        # Calculate portfolio value over time
-                        portfolio_value = pd.Series(0.0, index=price_df.index)
-                        for ticker in price_df.columns:
-                            portfolio_value += price_df[ticker] * shares_dict.get(ticker, 0)
+                    if portfolio_hist:
+                        # Create a DataFrame with all ticker prices
+                        price_df = pd.DataFrame(portfolio_hist)
                         
-                        # Normalize both to percentage returns from the start
-                        portfolio_return = (portfolio_value / portfolio_value.iloc[0] - 1) * 100
+                        # Validate data coverage: require at least 50% of trading days
+                        min_data_points = len(sp500_hist) * 0.5
+                        valid_columns = [col for col in price_df.columns 
+                                       if price_df[col].notna().sum() >= min_data_points]
                         
-                        # Align S&P 500 data with portfolio data
-                        sp500_aligned = sp500_hist['Close'].reindex(price_df.index).ffill().bfill()
-                        sp500_return = (sp500_aligned / sp500_aligned.iloc[0] - 1) * 100
-                        
-                        # Create comparison DataFrame
-                        comparison_df = pd.DataFrame({
-                            'Date': price_df.index,
-                            'Portfolio': portfolio_return.values,
-                            'S&P 500': sp500_return.values
-                        })
-                        
-                        # Create the comparison chart
-                        fig_comparison = go.Figure()
-                        
-                        fig_comparison.add_trace(go.Scatter(
-                            x=comparison_df['Date'],
-                            y=comparison_df['Portfolio'],
-                            mode='lines',
-                            name='Portfolio',
-                            line=dict(color='#1f77b4', width=2)
-                        ))
-                        
-                        fig_comparison.add_trace(go.Scatter(
-                            x=comparison_df['Date'],
-                            y=comparison_df['S&P 500'],
-                            mode='lines',
-                            name='S&P 500',
-                            line=dict(color='#ff7f0e', width=2)
-                        ))
-                        
-                        # Add a zero line for reference
-                        fig_comparison.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
-                        
-                        fig_comparison.update_layout(
-                            title='Portfolio vs S&P 500 Performance (1 Year)',
-                            xaxis_title='Date',
-                            yaxis_title='Return (%)',
-                            legend=dict(
-                                orientation="h",
-                                yanchor="top",
-                                y=-0.15,
-                                xanchor="center",
-                                x=0.5
-                            ),
-                            margin=dict(l=10, r=10, t=40, b=80),
-                            hovermode='x unified'
-                        )
-                        
-                        st.plotly_chart(fig_comparison, use_container_width=True)
-                        
-                        # Show performance summary
-                        portfolio_total_return = portfolio_return.iloc[-1]
-                        sp500_total_return = sp500_return.iloc[-1]
-                        outperformance = portfolio_total_return - sp500_total_return
-                        
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric(
-                                "Portfolio Return",
-                                f"{portfolio_total_return:+.2f}%",
-                                delta=None
-                            )
-                        with col2:
-                            st.metric(
-                                "S&P 500 Return",
-                                f"{sp500_total_return:+.2f}%",
-                                delta=None
-                            )
-                        with col3:
-                            delta_color = "normal" if outperformance >= 0 else "inverse"
-                            st.metric(
-                                "Outperformance",
-                                f"{outperformance:+.2f}%",
-                                delta=f"{'Beat' if outperformance >= 0 else 'Underperformed'} S&P 500",
-                                delta_color=delta_color
-                            )
+                        if valid_columns:
+                            price_df = price_df[valid_columns]
+                            # Forward fill missing values and drop any remaining NaN rows
+                            price_df = price_df.ffill().bfill().dropna()
+                            
+                            if not price_df.empty:
+                                # Calculate portfolio value over time
+                                portfolio_value = pd.Series(0.0, index=price_df.index)
+                                for ticker in price_df.columns:
+                                    portfolio_value += price_df[ticker] * shares_dict.get(ticker, 0)
+                                
+                                # Normalize both to percentage returns from the start
+                                portfolio_return = (portfolio_value / portfolio_value.iloc[0] - 1) * 100
+                                
+                                # Align S&P 500 data with portfolio data
+                                sp500_aligned = sp500_hist['Close'].reindex(price_df.index).ffill().bfill()
+                                sp500_return = (sp500_aligned / sp500_aligned.iloc[0] - 1) * 100
+                                
+                                # Create comparison DataFrame
+                                comparison_df = pd.DataFrame({
+                                    'Date': price_df.index,
+                                    'Portfolio': portfolio_return.values,
+                                    'S&P 500': sp500_return.values
+                                })
+                                
+                                # Create the comparison chart
+                                fig_comparison = go.Figure()
+                                
+                                fig_comparison.add_trace(go.Scatter(
+                                    x=comparison_df['Date'],
+                                    y=comparison_df['Portfolio'],
+                                    mode='lines',
+                                    name='Portfolio',
+                                    line=dict(color='#1f77b4', width=2)
+                                ))
+                                
+                                fig_comparison.add_trace(go.Scatter(
+                                    x=comparison_df['Date'],
+                                    y=comparison_df['S&P 500'],
+                                    mode='lines',
+                                    name='S&P 500',
+                                    line=dict(color='#ff7f0e', width=2)
+                                ))
+                                
+                                # Add a zero line for reference
+                                fig_comparison.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+                                
+                                fig_comparison.update_layout(
+                                    title='Portfolio vs S&P 500 Performance (1 Year)',
+                                    xaxis_title='Date',
+                                    yaxis_title='Return (%)',
+                                    legend=dict(
+                                        orientation="h",
+                                        yanchor="top",
+                                        y=-0.15,
+                                        xanchor="center",
+                                        x=0.5
+                                    ),
+                                    margin=dict(l=10, r=10, t=40, b=80),
+                                    hovermode='x unified'
+                                )
+                                
+                                st.plotly_chart(fig_comparison, use_container_width=True)
+                                
+                                # Show performance summary
+                                portfolio_total_return = portfolio_return.iloc[-1]
+                                sp500_total_return = sp500_return.iloc[-1]
+                                outperformance = portfolio_total_return - sp500_total_return
+                                
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric(
+                                        "Portfolio Return",
+                                        f"{portfolio_total_return:+.2f}%",
+                                        delta=None
+                                    )
+                                with col2:
+                                    st.metric(
+                                        "S&P 500 Return",
+                                        f"{sp500_total_return:+.2f}%",
+                                        delta=None
+                                    )
+                                with col3:
+                                    delta_color = "normal" if outperformance >= 0 else "inverse"
+                                    st.metric(
+                                        "Outperformance",
+                                        f"{outperformance:+.2f}%",
+                                        delta=f"{'Beat' if outperformance >= 0 else 'Underperformed'} S&P 500",
+                                        delta_color=delta_color
+                                    )
+                            else:
+                                st.info("Insufficient price data to calculate performance comparison.")
+                        else:
+                            st.info("Insufficient data coverage for portfolio tickers.")
                     else:
-                        st.info("Insufficient price data to calculate performance comparison.")
+                        st.info("Unable to fetch historical data for portfolio tickers.")
                 else:
-                    st.info("Unable to fetch historical data for portfolio tickers.")
+                    st.info("No active holdings found in portfolio.")
             else:
                 st.info("Unable to fetch S&P 500 data.")
         except Exception as e:
