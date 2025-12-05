@@ -1,0 +1,7 @@
+Manex: 180_000
+yuucyo: 550000
+bybit: 15_0000
+folio : 10_0000
+
+
+debut:800_0000
