@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import glob
 import os
+import re
+import numpy as np
 import plotly.express as px
 from datetime import datetime
 
@@ -314,7 +316,6 @@ if df is not None:
                 custom_data_cols.append(scatter_df['ticker'])
                 custom_data_cols.append(scatter_df['value_jp'] if 'value_jp' in scatter_df.columns else [0]*len(scatter_df))
                 
-                import numpy as np
                 custom_data = np.column_stack(custom_data_cols)
                 
                 fig_scatter = px.scatter(
@@ -526,7 +527,6 @@ if df is not None:
     jp_history_files = sorted(glob.glob(os.path.join("output", "portfolio_jp_result_*.csv")), key=os.path.getmtime)
     
     history_data = []
-    import re
     
     for f_path in us_history_files + jp_history_files:
         try:
@@ -556,7 +556,7 @@ if df is not None:
         
         # Pivot to combine US and JP values by date
         pivot_df = history_df.pivot(index='date', columns='source', values='total_value_jp').reset_index()
-        pivot_df = pivot_df.fillna(method='ffill').fillna(0)
+        pivot_df = pivot_df.ffill().fillna(0)
         
         # Calculate combined total
         cols_to_sum = [c for c in ['US', 'JP'] if c in pivot_df.columns]
