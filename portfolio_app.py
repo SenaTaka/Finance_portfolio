@@ -649,10 +649,19 @@ if df is not None:
             start_date = end_date - timedelta(days=365)
             
             # Get S&P 500 data
-            sp500 = yf.Ticker("^GSPC")
+            sp500 = yf.Ticker("^SPX")
             sp500_hist = sp500.history(start=start_date, end=end_date)
             
+            if sp500_hist.empty:
+                # Fallback to ^GSPC if ^SPX fails
+                sp500 = yf.Ticker("^GSPC")
+                sp500_hist = sp500.history(start=start_date, end=end_date)
+            
             if not sp500_hist.empty:
+                # Ensure timezone naive for comparison to avoid mismatch
+                if sp500_hist.index.tz is not None:
+                    sp500_hist.index = sp500_hist.index.tz_localize(None)
+
                 # Get historical data for portfolio tickers using batch download
                 # Filter to USD-only stocks for fair comparison with S&P 500 (a US market index)
                 if 'currency' in df.columns:
@@ -685,12 +694,16 @@ if df is not None:
                                 if 'Close' in portfolio_data.columns:
                                     close_data = portfolio_data['Close']
                                     if not close_data.empty:
+                                        if close_data.index.tz is not None:
+                                            close_data.index = close_data.index.tz_localize(None)
                                         portfolio_hist[ticker] = close_data
                             else:
                                 # Multiple tickers case
                                 if ticker in portfolio_data.columns.get_level_values(0):
                                     close_data = portfolio_data[ticker]['Close']
                                     if not close_data.empty and close_data.notna().sum() > 0:
+                                        if close_data.index.tz is not None:
+                                            close_data.index = close_data.index.tz_localize(None)
                                         portfolio_hist[ticker] = close_data
                         except (KeyError, TypeError):
                             continue
