@@ -17,6 +17,18 @@ try:
     from portfolio_calculator import PortfolioCalculator
 except ImportError:
     pass
+try:
+    from efficient_frontier import (
+        calculate_efficient_frontier,
+        generate_random_portfolios,
+        get_portfolio_suggestions,
+        prepare_data_for_frontier,
+        find_optimal_portfolio,
+        find_min_volatility_portfolio,
+    )
+    EFFICIENT_FRONTIER_AVAILABLE = True
+except ImportError:
+    EFFICIENT_FRONTIER_AVAILABLE = False
 
 st.set_page_config(page_title="Sena Investment", layout="wide")
 
@@ -444,6 +456,272 @@ if df is not None:
                 st.plotly_chart(fig_bar, use_container_width=True)
             else:
                 st.write("No Sharpe Ratio data available.")
+
+    st.divider()
+    st.subheader("📈 Efficient Frontier (Modern Portfolio Theory)")
+    
+    if EFFICIENT_FRONTIER_AVAILABLE:
+        # Build price history from cache for efficient frontier calculation
+        from portfolio_calculator import load_cache
+        cache = load_cache()
+        
+        # Collect historical data for tickers in current portfolio
+        price_data = {}
+        valid_tickers = []
+        
+        for _, row in df.iterrows():
+            ticker = row['ticker']
+            cached = cache.get(ticker, {})
+            if cached.get('history') and cached.get('history_index'):
+                try:
+                    hist_series = pd.Series(
+                        cached['history'],
+                        index=pd.to_datetime(cached['history_index'])
+                    )
+                    if len(hist_series) > 20:  # Require at least 20 data points
+                        price_data[ticker] = hist_series
+                        valid_tickers.append(ticker)
+                except (ValueError, TypeError):
+                    pass
+        
+        if len(valid_tickers) >= 2:
+            try:
+                # Create aligned price DataFrame
+                price_df = pd.DataFrame(price_data)
+                price_df = price_df.ffill().bfill().dropna()
+                
+                if len(price_df) > 20:
+                    # Prepare data for efficient frontier
+                    expected_returns, cov_matrix, tickers = prepare_data_for_frontier(price_df)
+                    
+                    # Get current weights from portfolio
+                    current_weights = None
+                    if 'value' in df.columns:
+                        total_val = df[df['ticker'].isin(valid_tickers)]['value'].sum()
+                        if total_val > 0:
+                            weights_list = []
+                            for t in tickers:
+                                val = df[df['ticker'] == t]['value'].sum()
+                                weights_list.append(val / total_val)
+                            current_weights = np.array(weights_list)
+                    
+                    # Calculate efficient frontier
+                    frontier_df = calculate_efficient_frontier(
+                        expected_returns, cov_matrix, n_points=50
+                    )
+                    
+                    # Generate random portfolios for comparison
+                    random_df = generate_random_portfolios(
+                        expected_returns, cov_matrix, n_portfolios=500
+                    )
+                    
+                    # Get portfolio suggestions
+                    suggestions = get_portfolio_suggestions(
+                        tickers, expected_returns, cov_matrix, current_weights
+                    )
+                    
+                    # Create efficient frontier visualization
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        fig_ef = go.Figure()
+                        
+                        # Add random portfolios as scatter
+                        fig_ef.add_trace(go.Scatter(
+                            x=random_df['volatility'] * 100,
+                            y=random_df['return'] * 100,
+                            mode='markers',
+                            marker=dict(
+                                color=random_df['sharpe'],
+                                colorscale='Viridis',
+                                size=5,
+                                opacity=0.5,
+                                colorbar=dict(title='Sharpe')
+                            ),
+                            name='Random Portfolios',
+                            hovertemplate='Vol: %{x:.1f}%<br>Return: %{y:.1f}%<extra></extra>'
+                        ))
+                        
+                        # Add efficient frontier line
+                        if not frontier_df.empty:
+                            fig_ef.add_trace(go.Scatter(
+                                x=frontier_df['volatility'] * 100,
+                                y=frontier_df['return'] * 100,
+                                mode='lines',
+                                line=dict(color='red', width=3),
+                                name='Efficient Frontier',
+                                hovertemplate='Vol: %{x:.1f}%<br>Return: %{y:.1f}%<extra></extra>'
+                            ))
+                        
+                        # Add Max Sharpe portfolio
+                        # Note: hovertemplate uses f-string to embed values at definition time,
+                        # which is correct here since we want to display the calculated values
+                        max_sharpe_data = suggestions['max_sharpe']
+                        fig_ef.add_trace(go.Scatter(
+                            x=[max_sharpe_data['volatility']],
+                            y=[max_sharpe_data['expected_return']],
+                            mode='markers+text',
+                            marker=dict(color='gold', size=15, symbol='star'),
+                            name='Max Sharpe',
+                            text=['★ Max Sharpe'],
+                            textposition='top right',
+                            hovertemplate=f"Max Sharpe<br>Vol: {max_sharpe_data['volatility']:.1f}%<br>Return: {max_sharpe_data['expected_return']:.1f}%<extra></extra>"
+                        ))
+                        
+                        # Add Min Volatility portfolio
+                        min_vol_data = suggestions['min_volatility']
+                        fig_ef.add_trace(go.Scatter(
+                            x=[min_vol_data['volatility']],
+                            y=[min_vol_data['expected_return']],
+                            mode='markers+text',
+                            marker=dict(color='blue', size=15, symbol='diamond'),
+                            name='Min Volatility',
+                            text=['◆ Min Vol'],
+                            textposition='top right',
+                            hovertemplate=f"Min Volatility<br>Vol: {min_vol_data['volatility']:.1f}%<br>Return: {min_vol_data['expected_return']:.1f}%<extra></extra>"
+                        ))
+                        
+                        # Add current portfolio if available
+                        if 'current' in suggestions:
+                            current_data = suggestions['current']
+                            fig_ef.add_trace(go.Scatter(
+                                x=[current_data['volatility']],
+                                y=[current_data['expected_return']],
+                                mode='markers+text',
+                                marker=dict(color='green', size=15, symbol='circle'),
+                                name='Current Portfolio',
+                                text=['● Current'],
+                                textposition='top right',
+                                hovertemplate=f"Current<br>Vol: {current_data['volatility']:.1f}%<br>Return: {current_data['expected_return']:.1f}%<extra></extra>"
+                            ))
+                        
+                        # Add individual assets
+                        for i, ticker in enumerate(tickers):
+                            asset_return = expected_returns[i] * 100
+                            asset_vol = np.sqrt(cov_matrix[i, i]) * 100
+                            fig_ef.add_trace(go.Scatter(
+                                x=[asset_vol],
+                                y=[asset_return],
+                                mode='markers',
+                                marker=dict(color='gray', size=8, symbol='x'),
+                                name=ticker,
+                                hovertemplate=f"{ticker}<br>Vol: {asset_vol:.1f}%<br>Return: {asset_return:.1f}%<extra></extra>"
+                            ))
+                        
+                        fig_ef.update_layout(
+                            title='Efficient Frontier (効率的フロンティア)',
+                            xaxis_title='Volatility (Risk) [%]',
+                            yaxis_title='Expected Return [%]',
+                            legend=dict(
+                                orientation="h",
+                                yanchor="top",
+                                y=-0.15,
+                                xanchor="center",
+                                x=0.5,
+                                font=dict(size=10)
+                            ),
+                            margin=dict(l=10, r=10, t=40, b=100),
+                            hovermode='closest'
+                        )
+                        
+                        st.plotly_chart(fig_ef, use_container_width=True)
+                    
+                    with col2:
+                        st.markdown("#### Portfolio Suggestions")
+                        st.markdown("##### ポートフォリオ提案")
+                        
+                        # Display suggestions as cards
+                        for key, sug in suggestions.items():
+                            with st.expander(f"📊 {sug['name_jp']}", expanded=(key == 'max_sharpe')):
+                                st.markdown(f"**{sug['description_jp']}**")
+                                st.markdown(f"- 期待リターン: **{sug['expected_return']:.1f}%**")
+                                st.markdown(f"- ボラティリティ: **{sug['volatility']:.1f}%**")
+                                st.markdown(f"- シャープレシオ: **{sug['sharpe']:.2f}**")
+                                
+                                # Show weights
+                                st.markdown("**配分比率:**")
+                                weights_df = pd.DataFrame([
+                                    {'Ticker': t, 'Weight': f"{w*100:.1f}%"}
+                                    for t, w in sug['weights'].items()
+                                    if w > 0.01  # Only show weights > 1%
+                                ])
+                                if not weights_df.empty:
+                                    weights_df = weights_df.sort_values('Weight', ascending=False)
+                                    st.dataframe(weights_df, hide_index=True, use_container_width=True)
+                    
+                    # Add rebalancing recommendation
+                    st.markdown("---")
+                    st.markdown("#### 🎯 Rebalancing Recommendation (リバランス推奨)")
+                    
+                    if 'current' in suggestions:
+                        current = suggestions['current']
+                        max_sharpe = suggestions['max_sharpe']
+                        
+                        improvement_sharpe = max_sharpe['sharpe'] - current['sharpe']
+                        improvement_return = max_sharpe['expected_return'] - current['expected_return']
+                        risk_change = max_sharpe['volatility'] - current['volatility']
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric(
+                                "Sharpe Ratio Improvement",
+                                f"{improvement_sharpe:+.2f}",
+                                delta=f"From {current['sharpe']:.2f} to {max_sharpe['sharpe']:.2f}"
+                            )
+                        with col2:
+                            st.metric(
+                                "Expected Return Change",
+                                f"{improvement_return:+.1f}%",
+                                delta="per year"
+                            )
+                        with col3:
+                            st.metric(
+                                "Volatility Change",
+                                f"{risk_change:+.1f}%",
+                                delta="risk adjustment"
+                            )
+                        
+                        # Calculate and display required trades
+                        if total_value_jp:
+                            st.markdown("##### Required Trades to Reach Max Sharpe Portfolio")
+                            trade_data = []
+                            for ticker in tickers:
+                                current_weight = current['weights'].get(ticker, 0)
+                                target_weight = max_sharpe['weights'].get(ticker, 0)
+                                weight_diff = target_weight - current_weight
+                                trade_amount = weight_diff * total_value_jp
+                                
+                                if abs(trade_amount) > 10000:  # Only show significant trades
+                                    trade_data.append({
+                                        'Ticker': ticker,
+                                        'Current %': f"{current_weight*100:.1f}%",
+                                        'Target %': f"{target_weight*100:.1f}%",
+                                        'Trade (JPY)': int(trade_amount),
+                                        'Action': '買い' if trade_amount > 0 else '売り'
+                                    })
+                            
+                            if trade_data:
+                                trade_df = pd.DataFrame(trade_data)
+                                st.dataframe(
+                                    trade_df,
+                                    use_container_width=True,
+                                    hide_index=True,
+                                    column_config={
+                                        'Trade (JPY)': st.column_config.NumberColumn(format="¥%d")
+                                    }
+                                )
+                            else:
+                                st.info("現在のポートフォリオは最適配分に近いです。")
+                    else:
+                        st.info("現在のポートフォリオの配分データがありません。")
+                else:
+                    st.info("効率的フロンティアの計算には、より多くの価格履歴データが必要です。")
+            except Exception as e:
+                st.warning(f"効率的フロンティアの計算中にエラーが発生しました: {e}")
+        else:
+            st.info("効率的フロンティアの計算には、少なくとも2銘柄の価格データが必要です。「Update Data」を実行してデータを取得してください。")
+    else:
+        st.warning("効率的フロンティア機能を使用するには、scipy ライブラリが必要です。")
 
     st.divider()
     st.subheader("Rebalance Suggestions")

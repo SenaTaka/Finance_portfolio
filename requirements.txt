@@ -4,6 +4,7 @@ numpy
 pandas
 plotly
 requests
+scipy
 statsmodels
 streamlit
 yfinance
