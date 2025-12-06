@@ -349,6 +349,28 @@ class TestBacktestPortfolio(unittest.TestCase):
         # Annualized return should be -100% for complete loss
         self.assertAlmostEqual(result["metrics"]["annualized_return"], -1.0, places=2)
 
+    def test_backtest_handles_nan_values(self):
+        """Backtest should handle NaN values in price data using forward-fill."""
+        dates = pd.date_range("2024-01-01", periods=30, freq="D")
+        data = {
+            "AAA": np.linspace(100, 130, num=len(dates)),
+            "BBB": np.linspace(50, 80, num=len(dates)),
+        }
+        price_df = pd.DataFrame(data, index=dates)
+        
+        # Introduce NaN values in one column
+        price_df.loc[price_df.index[10:15], "BBB"] = np.nan
+
+        weights = {"AAA": 0.5, "BBB": 0.5}
+        result = backtest_portfolio(weights, price_df)
+
+        # Should not have any NaN in results
+        self.assertFalse(result["daily_returns"].isna().any())
+        self.assertFalse(result["cumulative_returns"].isna().any())
+        
+        # Total return should still be positive for this upward trend
+        self.assertGreater(result["metrics"]["total_return"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
