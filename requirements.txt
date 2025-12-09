@@ -9,3 +9,5 @@ statsmodels
 streamlit
 yfinance
 streamlit_autorefresh
+sqlalchemy
+alembic
