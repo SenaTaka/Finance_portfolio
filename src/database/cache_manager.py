@@ -118,9 +118,9 @@ class DatabaseCacheManager:
         
         try:
             self.session.commit()
-        except Exception as e:
+        except Exception:
             self.session.rollback()
-            raise e
+            raise
     
     def is_cache_valid(self, cached_time_str: Optional[str], ttl_hours: float) -> bool:
         """Check if cached data is still valid based on TTL.

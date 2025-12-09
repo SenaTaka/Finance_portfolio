@@ -149,12 +149,14 @@ class PriceStreamServer:
             'timestamp': datetime.now().isoformat()
         })
         
-        # Send to all clients
+        # Send to all clients (filter out closed connections)
         if self.clients:
-            await asyncio.gather(
-                *[client.send(message) for client in self.clients],
-                return_exceptions=True
-            )
+            active_clients = [c for c in self.clients if not c.closed]
+            if active_clients:
+                await asyncio.gather(
+                    *[client.send(message) for client in active_clients],
+                    return_exceptions=True
+                )
     
     async def start(self):
         """Start the WebSocket server."""
