@@ -13,3 +13,4 @@ sqlalchemy
 alembic
 scikit-learn
 websockets
+textblob
