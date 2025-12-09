@@ -1,5 +1,7 @@
 # Migration Guide to Modular Architecture
 
+> 📘 **日本語版** | [MIGRATION_GUIDE_JP.md](MIGRATION_GUIDE_JP.md)
+
 This guide helps you migrate from the old monolithic structure to the new modular architecture.
 
 ## What Changed?

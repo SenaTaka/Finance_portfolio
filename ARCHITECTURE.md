@@ -1,5 +1,7 @@
 # Architecture Documentation
 
+> 📘 **日本語版** | [ARCHITECTURE_JP.md](ARCHITECTURE_JP.md)
+
 ## Overview
 
 This document describes the modular architecture of the Finance Portfolio Management System. The system has been refactored to support large-scale development with improved extensibility and maintainability.

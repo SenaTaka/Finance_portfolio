@@ -2,6 +2,8 @@
 
 A comprehensive, modular portfolio management system with support for portfolio valuation, optimization, and analysis using Modern Portfolio Theory.
 
+> 📘 **日本語ドキュメント** | [README_JP.md](README_JP.md) | [ARCHITECTURE_JP.md](ARCHITECTURE_JP.md) | [MIGRATION_GUIDE_JP.md](MIGRATION_GUIDE_JP.md)
+
 ## ⚠️ Important: New Modular Architecture
 
 This project has been refactored with a modular architecture for better scalability and maintainability. See [ARCHITECTURE.md](ARCHITECTURE.md) for details and [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for migration instructions.
