@@ -1,5 +1,7 @@
 # アーキテクチャドキュメント
 
+> 📘 **English Version** | [ARCHITECTURE.md](ARCHITECTURE.md)
+
 ## 概要
 
 このドキュメントでは、Finance Portfolio Management Systemのモジュール構造について説明します。このシステムは、拡張性と保守性を向上させ、大規模開発をサポートするためにリファクタリングされました。

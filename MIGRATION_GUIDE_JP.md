@@ -1,5 +1,7 @@
 # モジュール構造への移行ガイド
 
+> 📘 **English Version** | [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)
+
 このガイドは、旧モノリシック構造から新しいモジュール構造への移行を支援します。
 
 ## 何が変わりましたか？

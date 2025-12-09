@@ -2,6 +2,8 @@
 
 モダンポートフォリオ理論を使用した、包括的でモジュール化されたポートフォリオ管理システムです。ポートフォリオの評価、最適化、分析をサポートします。
 
+> 📘 **English Documentation** | [README_NEW.md](README_NEW.md) | [ARCHITECTURE.md](ARCHITECTURE.md) | [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)
+
 ## ⚠️ 重要：新しいモジュール構造
 
 このプロジェクトは、スケーラビリティとメンテナンス性の向上のため、モジュール構造にリファクタリングされました。詳細は[ARCHITECTURE_JP.md](ARCHITECTURE_JP.md)を、移行手順は[MIGRATION_GUIDE_JP.md](MIGRATION_GUIDE_JP.md)をご覧ください。

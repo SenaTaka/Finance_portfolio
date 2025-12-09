@@ -1,5 +1,7 @@
 # portfolio_calculator.py
 
+> 📘 **日本語ドキュメント** | [README_JP.md](README_JP.md) | [ARCHITECTURE_JP.md](ARCHITECTURE_JP.md) | [MIGRATION_GUIDE_JP.md](MIGRATION_GUIDE_JP.md)
+
 ## Overview
 This script reads a CSV file (containing tickers and share counts), fetches current stock prices and financial metrics from Yahoo Finance, and calculates portfolio valuations and allocation ratios.
 
