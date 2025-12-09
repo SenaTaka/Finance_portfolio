@@ -11,3 +11,4 @@ yfinance
 streamlit_autorefresh
 sqlalchemy
 alembic
+scikit-learn
