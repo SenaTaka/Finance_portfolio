@@ -401,8 +401,14 @@ def prepare_data_for_frontier(
         This is a common approximation in practice but may not be fully
         accurate for all market conditions.
     """
-    # Calculate daily returns
-    returns = price_history.pct_change().dropna()
+    # Forward-fill NaN values before calculating returns.
+    # This assumes the last known price persists until new data is available,
+    # which is a standard approach for handling gaps in financial price data.
+    price_history_filled = price_history.ffill()
+    
+    # Calculate daily returns with explicit fill_method=None to avoid FutureWarning
+    # The ffill above handles the NaN values before calculating returns
+    returns = price_history_filled.pct_change(fill_method=None).dropna()
     
     if returns.empty or len(returns) < 2:
         raise ValueError("Insufficient price history for calculation")
@@ -447,7 +453,14 @@ def backtest_portfolio(
     if len(price_df) < 20:
         raise ValueError("At least 20 price points are required for backtesting")
 
-    returns = price_df.pct_change().dropna(how="all")
+    # Forward-fill NaN values before calculating returns.
+    # This assumes the last known price persists until new data is available,
+    # which is a standard approach for handling gaps in financial price data.
+    price_df_filled = price_df.ffill()
+    
+    # Calculate returns with explicit fill_method=None to avoid FutureWarning
+    # The ffill above handles the NaN values before calculating returns
+    returns = price_df_filled.pct_change(fill_method=None).dropna()
     if returns.empty:
         raise ValueError("Unable to calculate returns from provided price history")
 
