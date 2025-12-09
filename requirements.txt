@@ -12,3 +12,4 @@ streamlit_autorefresh
 sqlalchemy
 alembic
 scikit-learn
+websockets
