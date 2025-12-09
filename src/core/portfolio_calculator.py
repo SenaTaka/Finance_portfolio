@@ -138,7 +138,7 @@ class PortfolioCalculator:
             return result
             
         except Exception as e:
-            print(f"{ticker}: データ取得エラー - {e}")
+            print(f"{ticker}: Data fetch error - {e}")
             return None
     
     def calculate_correlation_matrix(

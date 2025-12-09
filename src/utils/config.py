@@ -76,5 +76,6 @@ class Config:
         }
 
 
-# Create a singleton instance
+# Convenience singleton instance for default configuration
+# For testing or custom configurations, instantiate Config() directly
 config = Config()
