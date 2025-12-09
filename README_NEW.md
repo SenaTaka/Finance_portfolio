@@ -253,10 +253,17 @@ See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for complete migration instructions
 - [x] Configuration management
 - [x] Backward compatibility
 
-### Phase 2: UI Refactoring (Next)
-- [ ] Split portfolio_app.py into pages
-- [ ] Component-based UI
-- [ ] Improved state management
+### Phase 2: UI Refactoring ✅
+- [x] Split portfolio_app.py into pages
+- [x] Component-based UI
+- [x] Improved state management
+
+New modular UI app available:
+```bash
+streamlit run portfolio_app_v2.py
+```
+
+See [UI_REFACTORING.md](UI_REFACTORING.md) for details.
 
 ### Phase 3: Database Integration
 - [ ] Replace JSON cache with database

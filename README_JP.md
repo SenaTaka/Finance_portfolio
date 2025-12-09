@@ -306,10 +306,17 @@ from src.analysis import calculate_efficient_frontier
 - [x] 設定管理
 - [x] 後方互換性
 
-### フェーズ2：UIリファクタリング（次回）
-- [ ] portfolio_app.pyをページに分割
-- [ ] コンポーネントベースUI
-- [ ] 状態管理の改善
+### フェーズ2：UIリファクタリング ✅
+- [x] portfolio_app.pyをページに分割
+- [x] コンポーネントベースUI
+- [x] 状態管理の改善
+
+新しいモジュール版UIアプリ：
+```bash
+streamlit run portfolio_app_v2.py
+```
+
+詳細は[UI_REFACTORING.md](UI_REFACTORING.md)を参照。
 
 ### フェーズ3：データベース統合
 - [ ] JSONキャッシュをデータベースに置き換え
