@@ -16,69 +16,13 @@ from src.ui.state import AppState
 from src.ui.components import SettingsSidebar
 from src.ui.pages import HomePage, AnalysisPage, OptimizationPage, RebalancingPage, HistoryPage
 from src.utils.file_utils import extract_timestamp_from_filename
+from src.ui.constants import MOBILE_CSS, UI_TEXT, DEFAULT_LANGUAGE
 
 # Configure page
 st.set_page_config(page_title="Sena Investment", layout="wide")
 
 # Mobile optimization CSS
-st.markdown("""
-<style>
-/* Mobile responsive CSS */
-@media (max-width: 768px) {
-    .stButton > button {
-        min-height: 48px;
-        font-size: 16px;
-    }
-    
-    [data-testid="stMetricValue"] {
-        font-size: 1.5rem !important;
-    }
-    
-    .stDataFrame {
-        overflow-x: auto;
-    }
-    
-    [data-testid="column"] {
-        width: 100% !important;
-        flex: 1 1 100% !important;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        font-size: 14px;
-        padding: 10px 16px;
-    }
-    
-    .stSlider > div > div {
-        padding: 10px 0;
-    }
-    
-    .stSelectbox > div > div {
-        min-height: 44px;
-    }
-    
-    .js-plotly-plot {
-        margin-bottom: 20px;
-    }
-}
-
-@media (hover: none) and (pointer: coarse) {
-    .stButton > button {
-        min-height: 48px;
-        min-width: 48px;
-    }
-    
-    .stSidebar .stNumberInput input,
-    .stSidebar .stTextInput input {
-        font-size: 16px;
-        min-height: 44px;
-    }
-}
-
-[data-testid="stAppViewContainer"] {
-    touch-action: pan-x pan-y;
-}
-</style>
-""", unsafe_allow_html=True)
+st.markdown(MOBILE_CSS, unsafe_allow_html=True)
 
 # Initialize state
 AppState.initialize()
@@ -171,23 +115,24 @@ if loaded_file_names:
 
 # Main content - Page routing
 if df is not None:
-    # Navigation
+    # Navigation - use constants for i18n support
+    text = UI_TEXT[DEFAULT_LANGUAGE]
     page = st.sidebar.radio(
-        "Navigation",
-        ["🏠 Home", "📊 Analysis", "🎯 Optimization", "⚖️ Rebalancing", "📈 History"],
+        text['navigation'],
+        [text['home'], text['analysis'], text['optimization'], text['rebalancing'], text['history']],
         label_visibility="collapsed"
     )
     
     # Route to appropriate page
-    if page == "🏠 Home":
+    if page == text['home']:
         HomePage.render(df, settings['alert_threshold'])
-    elif page == "📊 Analysis":
+    elif page == text['analysis']:
         AnalysisPage.render(df, settings['view_mode'], selected_file)
-    elif page == "🎯 Optimization":
+    elif page == text['optimization']:
         OptimizationPage.render(df, selected_file, settings['view_mode'])
-    elif page == "⚖️ Rebalancing":
+    elif page == text['rebalancing']:
         RebalancingPage.render(df)
-    elif page == "📈 History":
+    elif page == text['history']:
         HistoryPage.render(df)
 else:
     st.info("Please load portfolio data using the sidebar or run 'Update Data'.")

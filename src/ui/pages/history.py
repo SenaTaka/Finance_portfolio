@@ -10,6 +10,7 @@ import os
 import re
 from datetime import datetime, timedelta
 import yfinance as yf
+from ..constants import SP500_TICKERS, TREASURY_TICKER, DEFAULT_RISK_FREE_RATE
 
 
 class HistoryPage:
@@ -147,21 +148,24 @@ class HistoryPage:
             return
         
         try:
-            # Get S&P 500 data
-            sp500 = yf.Ticker("^SPX")
-            sp500_hist = sp500.history(start=start_date, end=end_date)
-            
-            if sp500_hist.empty:
-                sp500 = yf.Ticker("^GSPC")
-                sp500_hist = sp500.history(start=start_date, end=end_date)
+            # Get S&P 500 data - try multiple tickers
+            sp500_hist = None
+            for ticker in SP500_TICKERS:
+                try:
+                    sp500 = yf.Ticker(ticker)
+                    sp500_hist = sp500.history(start=start_date, end=end_date)
+                    if not sp500_hist.empty:
+                        break
+                except Exception:
+                    continue
             
             # Get Risk Free Rate
-            tnx = yf.Ticker("^TNX")
+            tnx = yf.Ticker(TREASURY_TICKER)
             tnx_hist = tnx.history(period="1d")
             if not tnx_hist.empty:
                 rf_rate = tnx_hist['Close'].iloc[-1] / 100.0
             else:
-                rf_rate = 0.04
+                rf_rate = DEFAULT_RISK_FREE_RATE
             
             if sp500_hist.empty:
                 st.info("Unable to fetch S&P 500 data.")
