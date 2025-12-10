@@ -23,14 +23,19 @@ class RealtimeUpdates:
         # Info message
         st.info(f"Prices are refreshed automatically every {update_interval} seconds.")
         
+        # Track last update time in session state
+        if 'last_price_update' not in st.session_state:
+            st.session_state.last_price_update = datetime.now()
+        
         # Create columns for controls
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            st.caption(f"Last updated: {st.session_state.last_price_update.strftime('%Y-%m-%d %H:%M:%S')}")
         
         with col2:
             if st.button("🔄 Refresh Now", key="manual_refresh"):
+                st.session_state.last_price_update = datetime.now()
                 st.rerun()
         
         # Get latest prices
@@ -151,7 +156,9 @@ class RealtimeUpdates:
             return
         
         # Sort by absolute day change
-        updates_df = updates_df.sort_values('day_change_pct', ascending=False, key=abs)
+        updates_df['abs_change'] = updates_df['day_change_pct'].abs()
+        updates_df = updates_df.sort_values('abs_change', ascending=False)
+        updates_df = updates_df.drop('abs_change', axis=1)
         
         # Display as cards
         for _, row in updates_df.iterrows():
@@ -172,7 +179,10 @@ class RealtimeUpdates:
                 
                 with col3:
                     st.caption("Day High/Low")
-                    st.text(f"${row['day_high']:.2f} / ${row['day_low']:.2f}")
+                    # Handle None/NaN values gracefully
+                    high = row['day_high'] if pd.notna(row['day_high']) and row['day_high'] > 0 else row['new_price']
+                    low = row['day_low'] if pd.notna(row['day_low']) and row['day_low'] > 0 else row['new_price']
+                    st.text(f"${high:.2f} / ${low:.2f}")
                 
                 with col4:
                     # Format volume

@@ -73,7 +73,8 @@ class MLPredictionsPage:
                     return
                 
                 # Train model
-                predictor = StockPredictor(model_type='random_forest')
+                from ..constants import ML_MODEL_TYPE
+                predictor = StockPredictor(model_type=ML_MODEL_TYPE)
                 metrics = predictor.train(history, test_size=0.2)
                 
                 # Display model performance
@@ -200,7 +201,8 @@ class MLPredictionsPage:
                     continue
                 
                 # Train and predict
-                predictor = StockPredictor(model_type='random_forest')
+                from ..constants import ML_MODEL_TYPE
+                predictor = StockPredictor(model_type=ML_MODEL_TYPE)
                 predictor.train(history, test_size=0.2)
                 prediction = predictor.predict_next_day(history)
                 

@@ -36,8 +36,9 @@ class NewsSentimentPage:
         """)
         
         # Initialize components
+        from ..constants import SENTIMENT_USE_TEXTBLOB
         fetcher = NewsFetcher()
-        analyzer = SentimentAnalyzer(use_textblob=False)  # Use keyword-based for reliability
+        analyzer = SentimentAnalyzer(use_textblob=SENTIMENT_USE_TEXTBLOB)  # Configurable via constants
         
         # Create tabs
         tab1, tab2, tab3 = st.tabs(["📰 News Feed", "📊 Sentiment Overview", "🔍 Stock Details"])
