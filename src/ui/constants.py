@@ -12,6 +12,18 @@ TREASURY_TICKER = "^TNX"
 # Default risk-free rate (as fallback)
 DEFAULT_RISK_FREE_RATE = 0.04  # 4%
 
+# Advanced Features Configuration
+# ML Predictions
+ML_MODEL_TYPE = 'random_forest'  # Options: 'random_forest', 'gradient_boosting'
+ML_MIN_HISTORY_DAYS = 100  # Minimum days of history required for ML predictions
+
+# Real-time Updates
+REALTIME_REFRESH_INTERVAL_MS = 60000  # Auto-refresh interval in milliseconds (60 seconds)
+REALTIME_REFRESH_INTERVAL_SEC = 60  # Same in seconds for display
+
+# News & Sentiment
+SENTIMENT_USE_TEXTBLOB = False  # Use TextBlob for sentiment (requires installation)
+
 # Mobile-friendly layout CSS
 MOBILE_CSS = """
 <style>
@@ -82,6 +94,8 @@ UI_TEXT = {
         'optimization': '🎯 Optimization',
         'rebalancing': '⚖️ Rebalancing',
         'history': '📈 History',
+        'ml_predictions': '🤖 ML Predictions',
+        'news_sentiment': '📰 News & Sentiment',
     },
     'jp': {
         'app_title': 'Sena Investment',
@@ -91,6 +105,8 @@ UI_TEXT = {
         'optimization': '🎯 最適化',
         'rebalancing': '⚖️ リバランス',
         'history': '📈 履歴',
+        'ml_predictions': '🤖 機械学習予測',
+        'news_sentiment': '📰 ニュース・センチメント',
         'backtest_period': '表示期間を選択',
         'backtest_period_help': 'バックテストに使用する期間を選択します',
         'current_portfolio': '現在のポートフォリオ',

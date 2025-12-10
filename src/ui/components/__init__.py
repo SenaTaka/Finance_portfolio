@@ -7,6 +7,7 @@ from .metrics import PortfolioMetrics
 from .sidebar import SettingsSidebar
 from .charts import AllocationChart, SectorChart, RiskReturnChart
 from .data_table import DetailedDataTable
+from .realtime_updates import RealtimeUpdates
 
 __all__ = [
     'PortfolioMetrics',
@@ -15,4 +16,5 @@ __all__ = [
     'SectorChart',
     'RiskReturnChart',
     'DetailedDataTable',
+    'RealtimeUpdates',
 ]

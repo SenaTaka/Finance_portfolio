@@ -8,6 +8,8 @@ from .analysis import AnalysisPage
 from .optimization import OptimizationPage
 from .rebalancing import RebalancingPage
 from .history import HistoryPage
+from .ml_predictions import MLPredictionsPage
+from .news_sentiment import NewsSentimentPage
 
 __all__ = [
     'HomePage',
@@ -15,4 +17,6 @@ __all__ = [
     'OptimizationPage',
     'RebalancingPage',
     'HistoryPage',
+    'MLPredictionsPage',
+    'NewsSentimentPage',
 ]

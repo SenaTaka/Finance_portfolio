@@ -82,10 +82,14 @@ Calculation results can be visualized in a browser.
 
 ### Starting the UI
 ```bash
+# Standard UI (file-based)
 streamlit run portfolio_app.py
+
+# V2 UI (modular with advanced features)
+streamlit run portfolio_app_v2.py
 ```
 
-### Features
+### Core Features
 - **Combined View**: By default, automatically combines the latest results from `portfolio.csv` (US stocks) and `portfolio_jp.csv` (Japan stocks) to display as a single portfolio.
 - **Data Update**: Click the "Update Data" button in the sidebar to fetch and recalculate the latest information from `portfolio.csv` and `portfolio_jp.csv`.
   - **Caching**: Normal updates use cache to reduce API requests.
@@ -97,6 +101,31 @@ streamlit run portfolio_app.py
   - **Correlation Matrix**: Displays stock price correlation as a heatmap to verify diversification effects (when viewing individual files).
   - **Sharpe Optimized**: Provides portfolio optimization and rebalancing suggestions based on Sharpe ratio. Parameters (Sharpe/Volatility emphasis) can be adjusted.
 - Displays portfolio allocation ratio (pie chart) and Sharpe ratio (bar chart).
+
+### ✨ NEW: Advanced Features (V2 UI)
+
+#### 🤖 Machine Learning Predictions
+- AI-powered stock price forecasting using Random Forest models
+- Next-day and 5-day price predictions
+- Feature importance analysis showing which indicators matter most
+- Portfolio-wide predictions with bullish/bearish signals
+- Model performance metrics (R², MAE, training size)
+
+#### ⚡ Real-time Updates
+- Live price tracking with auto-refresh (60-second intervals)
+- Manual refresh on-demand
+- Day high/low and volume data
+- Change indicators (up/down with percentages)
+- Portfolio summary statistics
+
+#### 📰 News & Sentiment Analysis
+- Latest market news from Yahoo Finance
+- AI-powered sentiment analysis (positive/negative/neutral)
+- News feed with sentiment badges
+- Portfolio-wide sentiment overview
+- Stock-specific detailed analysis with confidence scores
+
+**See [ADVANCED_FEATURES_GUIDE.md](ADVANCED_FEATURES_GUIDE.md) for detailed usage instructions.**
 
 ### Efficient Frontier (Modern Portfolio Theory)
 Displays the efficient frontier based on Modern Portfolio Theory (MPT) and provides optimal portfolio allocation suggestions.

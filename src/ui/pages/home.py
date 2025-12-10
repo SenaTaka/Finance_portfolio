@@ -2,7 +2,8 @@
 
 import streamlit as st
 import pandas as pd
-from ..components import PortfolioMetrics, AllocationChart, SectorChart, DetailedDataTable
+from streamlit_autorefresh import st_autorefresh
+from ..components import PortfolioMetrics, AllocationChart, SectorChart, DetailedDataTable, RealtimeUpdates
 
 
 class HomePage:
@@ -18,6 +19,19 @@ class HomePage:
         """
         st.title("Sena Investment")
         
+        # Real-time auto-refresh (configurable interval)
+        # Only refresh if user enables it
+        from ..constants import REALTIME_REFRESH_INTERVAL_MS, REALTIME_REFRESH_INTERVAL_SEC
+        
+        enable_autorefresh = st.sidebar.checkbox("⚡ Enable Auto-Refresh", value=False, 
+                                                  help=f"Automatically refresh prices every {REALTIME_REFRESH_INTERVAL_SEC} seconds")
+        
+        if enable_autorefresh:
+            # Auto-refresh at configured interval
+            count = st_autorefresh(interval=REALTIME_REFRESH_INTERVAL_MS, key="portfolio_refresh")
+            if count > 0:
+                st.sidebar.caption(f"Auto-refreshed {count} times")
+        
         # Portfolio metrics
         PortfolioMetrics.render(df, alert_threshold)
         
@@ -29,6 +43,13 @@ class HomePage:
         
         with col2:
             SectorChart.render(df)
+        
+        st.divider()
+        
+        # Real-time updates section
+        from ..constants import REALTIME_REFRESH_INTERVAL_SEC
+        with st.expander("⚡ Real-time Price Updates", expanded=False):
+            RealtimeUpdates.render(df, update_interval=REALTIME_REFRESH_INTERVAL_SEC)
         
         st.divider()
         
