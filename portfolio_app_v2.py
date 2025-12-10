@@ -14,7 +14,10 @@ from datetime import datetime
 # Import UI components and pages
 from src.ui.state import AppState
 from src.ui.components import SettingsSidebar
-from src.ui.pages import HomePage, AnalysisPage, OptimizationPage, RebalancingPage, HistoryPage
+from src.ui.pages import (
+    HomePage, AnalysisPage, OptimizationPage, RebalancingPage, HistoryPage,
+    MLPredictionsPage, NewsSentimentPage
+)
 from src.utils.file_utils import extract_timestamp_from_filename
 from src.ui.constants import MOBILE_CSS, UI_TEXT, DEFAULT_LANGUAGE
 
@@ -119,7 +122,8 @@ if df is not None:
     text = UI_TEXT[DEFAULT_LANGUAGE]
     page = st.sidebar.radio(
         text['navigation'],
-        [text['home'], text['analysis'], text['optimization'], text['rebalancing'], text['history']],
+        [text['home'], text['analysis'], text['optimization'], text['rebalancing'], 
+         text['history'], text['ml_predictions'], text['news_sentiment']],
         label_visibility="collapsed"
     )
     
@@ -134,5 +138,9 @@ if df is not None:
         RebalancingPage.render(df)
     elif page == text['history']:
         HistoryPage.render(df)
+    elif page == text['ml_predictions']:
+        MLPredictionsPage.render(df)
+    elif page == text['news_sentiment']:
+        NewsSentimentPage.render(df)
 else:
     st.info("Please load portfolio data using the sidebar or run 'Update Data'.")

@@ -82,6 +82,8 @@ UI_TEXT = {
         'optimization': '🎯 Optimization',
         'rebalancing': '⚖️ Rebalancing',
         'history': '📈 History',
+        'ml_predictions': '🤖 ML Predictions',
+        'news_sentiment': '📰 News & Sentiment',
     },
     'jp': {
         'app_title': 'Sena Investment',
@@ -91,6 +93,8 @@ UI_TEXT = {
         'optimization': '🎯 最適化',
         'rebalancing': '⚖️ リバランス',
         'history': '📈 履歴',
+        'ml_predictions': '🤖 機械学習予測',
+        'news_sentiment': '📰 ニュース・センチメント',
         'backtest_period': '表示期間を選択',
         'backtest_period_help': 'バックテストに使用する期間を選択します',
         'current_portfolio': '現在のポートフォリオ',
