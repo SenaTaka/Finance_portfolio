@@ -1,6 +1,19 @@
 # portfolio_calculator.py
 
 > 📘 **日本語ドキュメント** | [README_JP.md](README_JP.md) | [ARCHITECTURE_JP.md](ARCHITECTURE_JP.md) | [MIGRATION_GUIDE_JP.md](MIGRATION_GUIDE_JP.md)
+> 
+> **その他の日本語ドキュメント**：
+> - [ADVANCED_FEATURES_GUIDE_JP.md](ADVANCED_FEATURES_GUIDE_JP.md) - 高度な機能ガイド
+> - [CHANGELOG_JP.md](CHANGELOG_JP.md) - 変更履歴
+> - [COMPLETED_JP.md](COMPLETED_JP.md) - リファクタリング完了レポート
+> - [DATABASE_MIGRATION_GUIDE_JP.md](DATABASE_MIGRATION_GUIDE_JP.md) - データベース移行ガイド
+> - [FEATURE_IMPLEMENTATION_SUMMARY_JP.md](FEATURE_IMPLEMENTATION_SUMMARY_JP.md) - 機能実装概要
+> - [INTEGRATION_SUMMARY_JP.md](INTEGRATION_SUMMARY_JP.md) - 統合概要
+> - [PHASE2_COMPLETE_JP.md](PHASE2_COMPLETE_JP.md) - フェーズ2完了レポート
+> - [README_NEW_JP.md](README_NEW_JP.md) - 新しいREADME
+> - [README_V2_JP.md](README_V2_JP.md) - Version 2.0 README
+> - [REFACTORING_SUMMARY_JP.md](REFACTORING_SUMMARY_JP.md) - リファクタリング概要
+> - [UI_REFACTORING_JP.md](UI_REFACTORING_JP.md) - UIリファクタリングドキュメント
 
 ## Overview
 This script reads a CSV file (containing tickers and share counts), fetches current stock prices and financial metrics from Yahoo Finance, and calculates portfolio valuations and allocation ratios.
