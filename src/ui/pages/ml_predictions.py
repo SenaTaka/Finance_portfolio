@@ -59,119 +59,137 @@ class MLPredictionsPage:
         Args:
             ticker: Stock ticker symbol
         """
-        with st.spinner(f"Fetching data and training model for {ticker}..."):
-            try:
-                # Fetch historical data (1 year)
-                end_date = datetime.now()
-                start_date = end_date - timedelta(days=365)
-                
-                stock = yf.Ticker(ticker)
-                history = stock.history(start=start_date, end=end_date)
-                
-                if history.empty or len(history) < 100:
-                    st.warning(f"Insufficient data for {ticker}. Need at least 100 days of history.")
-                    return
-                
-                # Train model
-                from ..constants import ML_MODEL_TYPE
-                predictor = StockPredictor(model_type=ML_MODEL_TYPE)
-                metrics = predictor.train(history, test_size=0.2)
-                
-                # Display model performance
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    st.metric("R² Score (Test)", f"{metrics['test_r2']:.3f}")
-                with col2:
-                    st.metric("MAE (Test)", f"${metrics['test_mae']:.2f}")
-                with col3:
-                    st.metric("Training Size", f"{metrics['train_size']} days")
-                
-                # Next day prediction
-                st.subheader("📊 Next Day Prediction")
-                prediction = predictor.predict_next_day(history)
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    st.metric("Current Price", f"${prediction['current_price']:.2f}")
-                with col2:
-                    direction_emoji = "📈" if prediction['direction'] == 'up' else "📉"
-                    st.metric(
-                        "Predicted Price",
-                        f"${prediction['predicted_price']:.2f}",
-                        delta=f"{prediction['predicted_return']:.2f}%"
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        try:
+            # Step 1: Fetch historical data (0% -> 25%)
+            status_text.text(f"データ取得中: {ticker}... (0%)")
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=365)
+
+            stock = yf.Ticker(ticker)
+            history = stock.history(start=start_date, end=end_date)
+
+            if history.empty or len(history) < 100:
+                progress_bar.empty()
+                status_text.empty()
+                st.warning(f"Insufficient data for {ticker}. Need at least 100 days of history.")
+                return
+
+            progress_bar.progress(0.25)
+
+            # Step 2: Feature extraction and model training (25% -> 75%)
+            status_text.text(f"特徴量抽出・モデル訓練中: {ticker}... (25%)")
+            from ..constants import ML_MODEL_TYPE
+            predictor = StockPredictor(model_type=ML_MODEL_TYPE)
+            metrics = predictor.train(history, test_size=0.2)
+
+            progress_bar.progress(0.75)
+
+            # Step 3: Generate predictions (75% -> 100%)
+            status_text.text(f"予測計算中: {ticker}... (75%)")
+            prediction = predictor.predict_next_day(history)
+            forecast = predictor.predict_multi_day(history, days=5)
+
+            progress_bar.progress(1.0)
+            status_text.empty()
+            progress_bar.empty()
+
+            # Display model performance
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric("R² Score (Test)", f"{metrics['test_r2']:.3f}")
+            with col2:
+                st.metric("MAE (Test)", f"${metrics['test_mae']:.2f}")
+            with col3:
+                st.metric("Training Size", f"{metrics['train_size']} days")
+
+            # Next day prediction
+            st.subheader("📊 Next Day Prediction")
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric("Current Price", f"${prediction['current_price']:.2f}")
+            with col2:
+                direction_emoji = "📈" if prediction['direction'] == 'up' else "📉"
+                st.metric(
+                    "Predicted Price",
+                    f"${prediction['predicted_price']:.2f}",
+                    delta=f"{prediction['predicted_return']:.2f}%"
+                )
+            with col3:
+                st.metric("Direction", f"{direction_emoji} {prediction['direction'].upper()}")
+
+            # Multi-day forecast
+            st.subheader("📅 5-Day Forecast")
+
+            # Create forecast chart
+            fig = go.Figure()
+
+            # Historical prices (last 30 days)
+            recent_history = history.tail(30)
+            fig.add_trace(go.Scatter(
+                x=recent_history.index,
+                y=recent_history['Close'],
+                mode='lines',
+                name='Historical',
+                line=dict(color='blue', width=2)
+            ))
+
+            # Predictions
+            fig.add_trace(go.Scatter(
+                x=forecast['date'],
+                y=forecast['predicted_price'],
+                mode='lines+markers',
+                name='Forecast',
+                line=dict(color='red', width=2, dash='dash')
+            ))
+
+            fig.update_layout(
+                title=f"{ticker} Price Forecast",
+                xaxis_title="Date",
+                yaxis_title="Price (USD)",
+                hovermode='x unified',
+                height=400
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Display forecast table
+            st.dataframe(
+                forecast[['day', 'predicted_price', 'predicted_return']].style.format({
+                    'predicted_price': '${:.2f}',
+                    'predicted_return': '{:.2f}%'
+                }),
+                use_container_width=True
+            )
+
+            # Feature importance
+            with st.expander("🔍 Feature Importance"):
+                importance = predictor.get_feature_importance()
+                if not importance.empty:
+                    # Show top 15 features
+                    top_features = importance.head(15)
+
+                    fig_importance = px.bar(
+                        top_features,
+                        x='importance',
+                        y='feature',
+                        orientation='h',
+                        title='Top 15 Most Important Features'
                     )
-                with col3:
-                    st.metric("Direction", f"{direction_emoji} {prediction['direction'].upper()}")
-                
-                # Multi-day forecast
-                st.subheader("📅 5-Day Forecast")
-                forecast = predictor.predict_multi_day(history, days=5)
-                
-                # Create forecast chart
-                fig = go.Figure()
-                
-                # Historical prices (last 30 days)
-                recent_history = history.tail(30)
-                fig.add_trace(go.Scatter(
-                    x=recent_history.index,
-                    y=recent_history['Close'],
-                    mode='lines',
-                    name='Historical',
-                    line=dict(color='blue', width=2)
-                ))
-                
-                # Predictions
-                fig.add_trace(go.Scatter(
-                    x=forecast['date'],
-                    y=forecast['predicted_price'],
-                    mode='lines+markers',
-                    name='Forecast',
-                    line=dict(color='red', width=2, dash='dash')
-                ))
-                
-                fig.update_layout(
-                    title=f"{ticker} Price Forecast",
-                    xaxis_title="Date",
-                    yaxis_title="Price (USD)",
-                    hovermode='x unified',
-                    height=400
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Display forecast table
-                st.dataframe(
-                    forecast[['day', 'predicted_price', 'predicted_return']].style.format({
-                        'predicted_price': '${:.2f}',
-                        'predicted_return': '{:.2f}%'
-                    }),
-                    use_container_width=True
-                )
-                
-                # Feature importance
-                with st.expander("🔍 Feature Importance"):
-                    importance = predictor.get_feature_importance()
-                    if not importance.empty:
-                        # Show top 15 features
-                        top_features = importance.head(15)
-                        
-                        fig_importance = px.bar(
-                            top_features,
-                            x='importance',
-                            y='feature',
-                            orientation='h',
-                            title='Top 15 Most Important Features'
-                        )
-                        fig_importance.update_layout(height=500)
-                        st.plotly_chart(fig_importance, use_container_width=True)
-                    else:
-                        st.info("Feature importance not available for this model.")
-                
-            except Exception as e:
-                st.error(f"Error generating prediction: {str(e)}")
-                st.exception(e)
+                    fig_importance.update_layout(height=500)
+                    st.plotly_chart(fig_importance, use_container_width=True)
+                else:
+                    st.info("Feature importance not available for this model.")
+
+        except Exception as e:
+            status_text.empty()
+            progress_bar.empty()
+            st.error(f"Error generating prediction: {str(e)}")
+            st.exception(e)
     
     @staticmethod
     def _render_portfolio_predictions(df: pd.DataFrame):
@@ -182,30 +200,51 @@ class MLPredictionsPage:
         """
         tickers = df['ticker'].unique().tolist()
         results = []
-        
+
         progress_bar = st.progress(0)
         status_text = st.empty()
-        
+
+        # Each ticker has 3 sub-steps: data fetch, feature extraction/training, prediction
+        total_steps = len(tickers) * 3
+
         for i, ticker in enumerate(tickers):
-            status_text.text(f"Processing {ticker}... ({i+1}/{len(tickers)})")
-            
+            base_step = i * 3
+
+            # Sub-step 1: Download data
+            progress_pct = int(base_step / total_steps * 100)
+            progress_bar.progress(base_step / total_steps)
+            status_text.text(f"[{progress_pct}%] データ取得中: {ticker} ({i+1}/{len(tickers)})")
+
             try:
                 # Fetch data
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=365)
-                
+
                 stock = yf.Ticker(ticker)
                 history = stock.history(start=start_date, end=end_date)
-                
+
                 if len(history) < 100:
                     continue
-                
+
+                # Sub-step 2: Feature extraction and model training
+                progress_pct = int((base_step + 1) / total_steps * 100)
+                progress_bar.progress((base_step + 1) / total_steps)
+                status_text.text(
+                    f"[{progress_pct}%] 特徴量抽出・モデル訓練中: {ticker} ({i+1}/{len(tickers)})"
+                )
+
                 # Train and predict
                 from ..constants import ML_MODEL_TYPE
                 predictor = StockPredictor(model_type=ML_MODEL_TYPE)
                 predictor.train(history, test_size=0.2)
+
+                # Sub-step 3: Prediction
+                progress_pct = int((base_step + 2) / total_steps * 100)
+                progress_bar.progress((base_step + 2) / total_steps)
+                status_text.text(f"[{progress_pct}%] 予測計算中: {ticker} ({i+1}/{len(tickers)})")
+
                 prediction = predictor.predict_next_day(history)
-                
+
                 results.append({
                     'ticker': ticker,
                     'current_price': prediction['current_price'],
@@ -213,13 +252,15 @@ class MLPredictionsPage:
                     'predicted_return': prediction['predicted_return'],
                     'direction': prediction['direction']
                 })
-                
+
             except Exception as e:
                 st.warning(f"Could not generate prediction for {ticker}: {str(e)}")
-            
-            progress_bar.progress((i + 1) / len(tickers))
-        
+
+            # Mark ticker as complete
+            progress_bar.progress((base_step + 3) / total_steps)
+
         status_text.empty()
+        progress_bar.progress(1.0)
         progress_bar.empty()
         
         if results:
